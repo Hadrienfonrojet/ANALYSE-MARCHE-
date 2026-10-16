@@ -1,4 +1,4 @@
-# Scripts_generation_data/Import_une_partie.py
+
 import requests
 import json
 import time
