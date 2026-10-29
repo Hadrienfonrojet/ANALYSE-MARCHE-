@@ -1,54 +1,16 @@
+"""Inspection explicite des métadonnées des parties, sans afficher de jeton."""
 import os
-# inspect_lichess.py
-import requests
-import json
+from config_projet import SEED_USERS
+from Scripts_generation_data.Collecte_enrichie import request_games
 
-# ⚡ Modifier ici le joueur et le format que tu veux inspecter
-username = "yuuki-asuna"
-format_partie = "classical"
-nb_parties = 5
-token = os.getenv("jeton_api")  
+def inspect_games(username, fmt='classical', n=5, token=None):
+    games = list(request_games(username, fmt, n, token))
+    for game in games:
+        print({'id': game.get('id'), 'opening': game.get('opening')})
+    return games
 
-url = f"https://lichess.org/api/games/user/{username}"
-params = {
-    "max": nb_parties,
-    "rated": "true",
-    "perfType": format_partie,
-}
-headers = {
-    "Accept": "application/x-ndjson",
-    "Authorization": f"Bearer {token}"
-}
+def main():
+    return inspect_games(SEED_USERS[0], token=os.getenv('LICHESS_TOKEN') or os.getenv('jeton_api'))
 
-response = requests.get(url, params=params, headers=headers)
-
-if response.status_code != 200:
-    print(f"Erreur {response.status_code} pour {username}")
-    exit()
-
-lines = response.text.strip().split("\n")
-for i, line in enumerate(lines):
-    if not line.strip():
-        continue
-
-    game_data = json.loads(line)
-    print(f"\n=== Partie {i+1} ===")
-    print("Clés disponibles dans game_data :")
-    print(game_data.keys())
-
-    # Vérifier si 'opening' est présent
-    opening = game_data.get("opening", None)
-    if opening:
-        print("Opening détectée :", opening)
-        print("  ECO :", opening.get("eco"))
-        print("  Name :", opening.get("name"))
-    else:
-        print("Aucune ouverture détectée pour cette partie.")
-
-    # Afficher les premiers coups et le PGN pour info
-    moves = game_data.get("moves", "")
-    print("Coups (extrait) :", moves[:50], "...")
-    print("PGN disponible :", "Oui" if game_data.get("pgn") else "Non")
-
-# EXTENSION : inspection sans secrets inscrits en dur ; le jeton vient de l'environnement.
-# Important : le jeton figurant dans le fichier original doit être révoqué sur Lichess.
+if __name__ == '__main__':
+    main()

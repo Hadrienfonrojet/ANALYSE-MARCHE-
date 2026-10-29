@@ -7,31 +7,37 @@ from config_projet import DATA_DIR, FORMATS
 def request_games(username, fmt, n, token, retries=4):
     headers={'Accept':'application/x-ndjson'}
     if token: headers['Authorization']='Bearer '+token
+    seen = set()
     for retry in range(retries):
         try:
             r=requests.get('https://lichess.org/api/games/user/'+username,
-                params={'max':n,'rated':'true','perfType':fmt,'opening':'true','moves':'true','sort':'dateAsc','finished':'true'},
+                params={'max':n,'rated':'true','perfType':fmt,'opening':'true','moves':'true','sort':'dateAsc','variant':'standard','finished':'true'},
                 headers=headers,stream=True,timeout=(15,120))
             if r.status_code==429:
                 r.close(); time.sleep(max(60,int(r.headers.get('Retry-After','60')))); continue
             r.raise_for_status()
             for line in r.iter_lines():
                 if line:
-                    try: yield json.loads(line)
-                    except json.JSONDecodeError: continue
+                    game = json.loads(line)
+                    if game.get('id') not in seen:
+                        seen.add(game.get('id'))
+                        yield game
             r.close(); return
         except requests.RequestException as exc:
-            print('Requête échouée:',username,fmt,str(exc)[:100]); time.sleep(2**retry)
+            if retry == retries - 1:
+                raise RuntimeError(f'Collecte Lichess échouée pour {username} ({fmt})') from exc
+            time.sleep(2**retry)
+    raise RuntimeError(f'Limite API persistante pour {username} ({fmt})')
 
 def discover_stratified(seeds, token, target_per_seed=30, neighbors_per_user=10, seed=42):
     rng=random.Random(seed); records=[]; visited=set()
     for seed_user in seeds:
-        queue=[seed_user.lower()]; count=0
+        queue=[(seed_user.lower(), 0)]; count=0
         while queue and count<target_per_seed:
-            name=queue.pop(0)
+            name, depth=queue.pop(0)
             if name in visited: continue
             visited.add(name); count+=1
-            records.append({'user_id':name,'seed_origin':seed_user,'discovery_depth':0 if name==seed_user else 1})
+            records.append({'user_id':name,'seed_origin':seed_user,'discovery_depth':depth})
             games=list(request_games(name,'blitz',neighbors_per_user,token))
             adversaries=[]
             for g in games:
@@ -39,8 +45,9 @@ def discover_stratified(seeds, token, target_per_seed=30, neighbors_per_user=10,
                     ident=g.get('players',{}).get(col,{}).get('user',{}).get('id')
                     if ident and ident.lower()!=name: adversaries.append(ident.lower())
             rng.shuffle(adversaries)
-            queue.extend([a for a in dict.fromkeys(adversaries) if a not in visited])
+            queue.extend([(a, depth + 1) for a in dict.fromkeys(adversaries) if a not in visited])
             time.sleep(.15)
+    if not records: raise ValueError('Aucun joueur configuré')
     df=pd.DataFrame(records).drop_duplicates('user_id')
     df.to_parquet(DATA_DIR/'users_list_stratified.parquet',index=False)
     return df

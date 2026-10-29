@@ -4,6 +4,7 @@ import pandas as pd
 from config_projet import DATA_DIR
 
 def prepare(raw, openings=None):
+    if raw.empty: raise ValueError('Aucune partie à nettoyer')
     df=raw.copy()
     df['user_id']=df['user_id'].astype(str).str.lower()
     df=df.dropna(subset=['game_id','user_id','timestamp_ms']).drop_duplicates(['user_id','game_id'])
@@ -27,7 +28,7 @@ def prepare(raw, openings=None):
     if 'family_reference' not in df: df['family_reference']=np.nan
     df['opening_family']=df['family_reference'].fillna(df['opening_name'].str.split(':').str[0]).fillna('Inconnue')
     df['eco_group']=df['eco'].str[0]
-    df['elo_band']=pd.cut(df['rating'],bins=[0,1000,1200,1400,1600,1800,2000,2200,2500,4000],include_lowest=True)
+    df['elo_band']=pd.cut(df['rating'],bins=[0,1000,1200,1400,1600,1800,2000,2200,2500,4000],labels=['0-1000','1000-1200','1200-1400','1400-1600','1600-1800','1800-2000','2000-2200','2200-2500','2500-4000'],include_lowest=True)
     # L'ouverture des noirs et des blancs dépend conjointement des deux joueurs.
     for keys in [['user_id','color'],['user_id','color','opening_family']]:
         label='color' if len(keys)==2 else 'opening'
