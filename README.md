@@ -144,3 +144,8 @@ Plusieurs extensions seraient naturelles :
 - modéliser explicitement la durée des séries (modèles de survie),
 - tester la robustesse sur d’autres périodes, échantillons ou plateformes.
 
+
+---
+
+## Extension 2026 : étude des ouvertures et de leur répétition
+La problématique, les instructions d'import sur 5 graines, les tests χ², les modèles emboîtés et les accès SSP Cloud sont détaillés dans **[README_OUVERTURES.md](README_OUVERTURES.md)**. Cette section est ajoutée sans supprimer le README historique sur le Hot Hand. Les chiffres de l'ancienne étude ne constituent pas des résultats de la nouvelle étude.

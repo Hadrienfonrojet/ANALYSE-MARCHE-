@@ -71,3 +71,7 @@ df_openings.to_parquet(save_path)
 
 print(f"DataFrame ouvertures créé et sauvegardé dans {save_path}")
 print(df_openings.head())
+# EXTENSION : complément exhaustif, sans écraser l'échantillon historique.
+def create_complete_openings_reference():
+    from Scripts_generation_data.Creation_openings_complet import build_openings
+    return build_openings()

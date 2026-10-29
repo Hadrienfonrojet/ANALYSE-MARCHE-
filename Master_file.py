@@ -4,6 +4,7 @@ import os
 import shutil
 import pandas as pd
 from dotenv import load_dotenv
+from config_projet import S3_BUCKET, S3_PREFIX
 
 from Scripts_generation_data.Import_des_users import discover_users_random_walk
 
@@ -41,20 +42,13 @@ def upload_folder_to_s3(local_folder, bucket, prefix):
         region_name=os.getenv("AWS_DEFAULT_REGION", "us-east-1")
     )
     
-    try:
-        objs = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
-        if "Contents" in objs:
-            for o in objs["Contents"]: s3.delete_object(Bucket=bucket, Key=o["Key"])
-    except: pass
-
     print(f"🚀 Upload vers s3://{bucket}/{prefix}...")
     for root, _, files in os.walk(local_folder):
         for file in files:
             path = os.path.join(root, file)
             rel = os.path.relpath(path, local_folder)
             key = f"{prefix}/{rel}"
-            try: s3.upload_file(path, bucket, key, ExtraArgs={'ACL': 'public-read'})
-            except: s3.upload_file(path, bucket, key)
+            s3.upload_file(path, bucket, key)
     
     print("✅ Upload terminé.")
 
@@ -89,7 +83,7 @@ def main():
     if not df_games.empty:
         df_games.to_parquet(os.path.join(DATA_DIR, "dfs_games.parquet"), index=False)
         out = prepare_output_folder()
-        upload_folder_to_s3(out, "tristant", "diffusion")
+        upload_folder_to_s3(out, S3_BUCKET, S3_PREFIX)
         nettoyer_data(DATA_DIR)
         print("✅ Terminé avec succès.")
     else:
@@ -97,3 +91,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+# EXTENSION : le pipeline enrichi et l'envoi SSP Cloud non destructif sont
+# disponibles en lançant séparément : python Pipeline_ouvertures.py --upload
+# L'envoi historique respecte aussi la configuration, sans suppression ni ACL publique.

@@ -11,9 +11,9 @@ os.makedirs(DATA_DIR, exist_ok=True)
 
 def get_recent_opponents(username, token, nb_games_to_check=10):
     """
-    Récupère les derniers adversaires d'un joueur.
+    Récupère les 10 derniers adversaires d'un joueur.
     """
-    url = f"https://lichess.org/api/games/user/{username}"
+    url = f"https://lichess.org/api/games/user/{username}" #on se connecte en téléchargeant les parties des adversaires
     params = {"max": nb_games_to_check, "lite": "true"} 
     headers = {"Authorization": f"Bearer {token}", "Accept": "application/x-ndjson"}
 
@@ -128,3 +128,37 @@ def discover_users_random_walk(seed_user, target_count, token, branching_factor=
     print(f"📁 Sauvegardé dans : {output_path}")
     
     return df_global
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# EXTENSION NON DESTRUCTIVE : sélection de cinq graines et conservation de leur provenance
+# La méthode originale discover_users_random_walk reste disponible.
+def discover_users_five_seeds(seed_users, token, target_per_seed=30):
+    from Scripts_generation_data.Collecte_enrichie import discover_stratified
+    if len(seed_users)!=5:
+        raise ValueError('Cinq utilisateurs distincts sont requis')
+    return discover_stratified(seed_users,token,target_per_seed)

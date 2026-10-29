@@ -1,4 +1,4 @@
-
+# Scripts_generation_data/Import_une_partie.py
 import requests
 import json
 import time
@@ -132,3 +132,7 @@ def import_games_df(nb_parties_extraites, token, max_workers=1):
 
     if all_dfs: return pd.concat(all_dfs, ignore_index=True)
     return pd.DataFrame()
+# EXTENSION : extraction enrichie (Elo adverse, positions, répétitions en aval)
+def import_games_enriched(users_df, token, n_per_format=60):
+    from Scripts_generation_data.Collecte_enrichie import collect_games
+    return collect_games(users_df,token,n_per_format)

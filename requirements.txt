@@ -1,0 +1,12 @@
+numpy
+pandas
+pyarrow
+matplotlib
+scipy
+statsmodels
+s3fs
+requests
+python-dotenv
+boto3
+nbformat>=5.7
+jupyter

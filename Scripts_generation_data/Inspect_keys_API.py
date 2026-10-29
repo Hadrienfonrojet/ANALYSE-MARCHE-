@@ -1,3 +1,4 @@
+import os
 # inspect_lichess.py
 import requests
 import json
@@ -6,7 +7,7 @@ import json
 username = "yuuki-asuna"
 format_partie = "classical"
 nb_parties = 5
-token = "lip_jwKnD5eHwEVhDubisYt5"  
+token = os.getenv("jeton_api")  
 
 url = f"https://lichess.org/api/games/user/{username}"
 params = {
@@ -48,3 +49,6 @@ for i, line in enumerate(lines):
     moves = game_data.get("moves", "")
     print("Coups (extrait) :", moves[:50], "...")
     print("PGN disponible :", "Oui" if game_data.get("pgn") else "Non")
+
+# EXTENSION : inspection sans secrets inscrits en dur ; le jeton vient de l'environnement.
+# Important : le jeton figurant dans le fichier original doit être révoqué sur Lichess.
