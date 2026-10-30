@@ -6,6 +6,16 @@ GitHub affiche le notebook ; utiliser Colab pour exécuter ses cellules. Le note
 
 Les ouvertures proviennent exclusivement du champ `opening` renvoyé par l'API des parties Lichess (`opening=true`). `Scripts_generation_data/Creation_openings_complet.py` est le seul constructeur du référentiel : il extrait les couples ECO/nom observés dans les parties collectées. Ce référentiel n'est pas un dictionnaire exhaustif.
 
+
+## Retrouver le déroulé du projet
+
+1. [Introduction aux ouvertures](docs/Introduction_aux_ouvertures.md) : notions, origine des informations, nom des fichiers et lien avec les répétitions.
+2. [Master_file.py](Master_file.py) : déroulé complet, commenté étape par étape, avec les fonctions de validation, collecte, ouvertures, nettoyage et analyse.
+3. [Création du référentiel des ouvertures](Scripts_generation_data/Creation_openings_complet.py) : extraction des métadonnées API et sauvegarde Parquet et CSV.
+4. [Notebook d'analyse](Analyse_data.ipynb) : code des tests et interprétation.
+
+Le script des ouvertures est présent sur GitHub. La table `openings_complet.parquet` et sa copie CSV sont créées lors d'une exécution dans `Collectes/<identifiant>/Data/` ; ce sont des sorties, pas des données déjà incluses dans le dépôt.
+
 ## Installation
 
 ```sh
