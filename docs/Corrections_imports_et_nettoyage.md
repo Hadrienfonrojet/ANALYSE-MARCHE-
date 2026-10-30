@@ -33,3 +33,7 @@ Les répétitions restent calculées avec les seules observations antérieures d
 Les tests logiciels sont dans `tests/test_imports_nettoyage.py`, en complément des tests d’analyse, du master et du notebook. Ils simulent les réponses réseau et vérifient les identifiants absents, les doublons, les ouvertures vides, les dates invalides, les référentiels incohérents, les listes historiques, les profondeurs du parcours, les réponses fermées et les échecs HTTP. Ils ne valident pas les accès réseau ou SSP Cloud réels.
 
 Exécuter depuis la racine du dépôt : `python -m unittest discover -s tests -v`.
+
+## Évolution du référentiel des ouvertures
+
+Le référentiel limité aux observations a été remplacé par les cinq tables officielles complètes. Les métadonnées API restent conservées à titre de comparaison, tandis que l'identification utilisée par les analyses est recalculée depuis les coups. Voir [Introduction aux ouvertures](Introduction_aux_ouvertures.md).

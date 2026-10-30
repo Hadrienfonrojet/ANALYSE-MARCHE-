@@ -18,7 +18,7 @@ class TestNotebook(unittest.TestCase):
          for i in range(40):
           col=rng.choice(['white','black']);user=f'u{u}'
           family=rng.choice(['Sicilian Defense: Test','French Defense: Test','Italian Game: Test'])
-          g={'id':f'g{u}_{i}','createdAt':1700000000000+i*100000,'status':'draw' if i%7==0 else 'mate','players':{'white':{'user':{'id':user if col=='white' else 'opponent'},'rating':int(rng.integers(1100,2000))},'black':{'user':{'id':user if col=='black' else 'opponent'},'rating':int(rng.integers(1100,2000))}},'opening':{'eco':'B20','name':family},'rated':True,'variant':'standard'}
+          g={'id':f'g{u}_{i}','createdAt':1700000000000+i*100000,'status':'draw' if i%7==0 else 'mate','players':{'white':{'user':{'id':user if col=='white' else 'opponent'},'rating':int(rng.integers(1100,2000))},'black':{'user':{'id':user if col=='black' else 'opponent'},'rating':int(rng.integers(1100,2000))}},'opening':{'eco':'B20','name':family},'rated':True,'variant':'standard','moves':'e4 e5 Nf3 Nc6 Bc4 Bc5 c3 Nf6 d3 d6 O-O O-O Re1 a6 Bb3 Ba7 Nbd2 h6 Nf1 Be6'}
           if i%7:g['winner']=rng.choice(['white','black'])
           rows.append(parse_game(g,user,rng.choice(['blitz','rapid']),user))
         with tempfile.TemporaryDirectory() as td:

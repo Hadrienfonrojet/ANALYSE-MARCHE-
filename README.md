@@ -4,17 +4,20 @@
 
 GitHub affiche le notebook ; utiliser Colab pour exécuter ses cellules. Le notebook comporte 60 cellules avec les fonctions essentielles visibles, les χ² détaillés et les analyses de répétition par couleur. Les sections 5 à 7 montrent le code du χ², les tests et leurs tableaux observés et attendus. La première cellule installe toutes les dépendances, dont `boto3`.
 
-Les ouvertures proviennent exclusivement du champ `opening` renvoyé par l'API des parties Lichess (`opening=true`). `Scripts_generation_data/Creation_openings_complet.py` est le seul constructeur du référentiel : il extrait les couples ECO/nom observés dans les parties collectées. Ce référentiel n'est pas un dictionnaire exhaustif.
+Le grand référentiel officiel des ouvertures est rétabli : les cinq tables Lichess `a.tsv` à `e.tsv` sont réunies dans [References/openings_complet.csv](References/openings_complet.csv) et `.parquet` (**3865 lignes** pour la version livrée). Les sources et leur révision sont conservées dans `References/`.
 
+Les ouvertures des parties sont identifiées **à partir des coups joués** : `python-chess` reconstruit les positions dans les 5 ou 10 premiers coups complets. La variante officielle la plus profonde atteinte est retenue ; la profondeur et les ambiguïtés sont enregistrées. Les noms API restent séparés dans `api_eco` et `api_opening_name`.
+
+Lire [la méthode complète](docs/Introduction_aux_ouvertures.md) et [Identification_ouvertures.py](Scripts_generation_data/Identification_ouvertures.py).
 
 ## Retrouver le déroulé du projet
 
 1. [Introduction aux ouvertures](docs/Introduction_aux_ouvertures.md) : notions, origine des informations, nom des fichiers et lien avec les répétitions.
 2. [Master_file.py](Master_file.py) : déroulé complet, commenté étape par étape, avec les fonctions de validation, collecte, ouvertures, nettoyage et analyse.
-3. [Création du référentiel des ouvertures](Scripts_generation_data/Creation_openings_complet.py) : extraction des métadonnées API et sauvegarde Parquet et CSV.
+3. [Création du référentiel des ouvertures](Scripts_generation_data/Creation_openings_complet.py) : téléchargement des cinq TSV officiels et sauvegarde du grand référentiel.
 4. [Notebook d'analyse](Analyse_data.ipynb) : code des tests et interprétation.
 
-Le script des ouvertures est présent sur GitHub. La table `openings_complet.parquet` et sa copie CSV sont créées lors d'une exécution dans `Collectes/<identifiant>/Data/` ; ce sont des sorties, pas des données déjà incluses dans le dépôt.
+Le script des ouvertures est présent sur GitHub. La grande table est incluse dans `References/` et copiée dans `Collectes/<identifiant>/Data/` à chaque exécution. La table des seules ouvertures rencontrées est distincte : `openings_observees.csv`.
 
 ## Installation
 
@@ -30,14 +33,14 @@ Configurer un ou plusieurs vrais pseudos séparés par des virgules dans `LICHES
 Depuis la racine du projet :
 
 ```sh
-python -m Pipeline_ouvertures --users-per-seed 1 --games-per-format 5
+python -m Pipeline_ouvertures --users-per-seed 1 --games-per-format 5 --opening-moves 10
 python -m Pipeline_ouvertures --skip-collect --raw-file Collectes/IDENTIFIANT/Data/games_enrichies_raw.parquet
 python -m Pipeline_ouvertures --skip-collect --raw-file Collectes/IDENTIFIANT/Data/games_enrichies_raw.parquet --upload
 ```
 
 `python Master_file.py` accepte les mêmes options. Importer les modules ne déclenche aucune collecte. Chaque étape est également une fonction réutilisable : `discover_stratified`, `collect_games`, `build_openings`, `prepare`, `analyze`, `upload_outputs` et `run_pipeline`.
 
-Chaque lancement crée `Collectes/<horodatage_identifiant>/` avec `Data/` et `Resultats/`, sans effacer les expériences précédentes, même lors d’une réanalyse. Les anciens dossiers racine sont conservés. Le pipeline écrit dans ce nouveau dossier `Data/games_enrichies_raw.parquet`, `Data/openings_complet.parquet`, `Data/games_clean.parquet`, `Data/players_openings.parquet`, puis les tableaux et figures dans `Resultats/`. L'option `--skip-collect` exige un fichier brut existant et reconstruit le référentiel pour éviter un cache périmé. Les anciens constructeurs manuels ont été supprimés.
+Chaque lancement crée `Collectes/<horodatage_identifiant>/` avec `Data/` et `Resultats/`, sans effacer les expériences précédentes, même lors d’une réanalyse. Les anciens dossiers racine sont conservés. Le pipeline écrit dans ce nouveau dossier `Data/games_enrichies_raw.parquet`, `Data/openings_complet.parquet`, `Data/games_clean.parquet`, `Data/players_openings.parquet`, puis les tableaux et figures dans `Resultats/`. L'option `--skip-collect` exige un fichier brut existant et charge le référentiel officiel figé, puis refait l’identification à partir des coups. Les anciens constructeurs manuels ont été supprimés.
 
 L'envoi SSP Cloud est uniquement explicite (`--upload`), vers `s3://hadrien2703/diffusion/projet_ouvertures/<identifiant_experience>/`. Il ne supprime pas d'objets et ne demande aucune ACL publique ; les clés existantes de même nom peuvent être remplacées.
 
@@ -77,3 +80,11 @@ Les données des tests sont simulées et ne constituent pas des résultats sur L
 - [Nettoyage_donnees.py](Nettoyage_donnees.py) présente séparément les identifiants, les scores et Elo, la jointure des ouvertures, les historiques et les sauvegardes.
 
 Les erreurs réseau persistantes sont signalées, les réponses sont fermées même après échec, les pseudos sont normalisés avant dédoublonnage et les identifiants absents sont retirés avant conversion en texte. Les ouvertures inconnues ne deviennent pas de fausses répétitions. Le détail des corrections est dans [Corrections des imports et du nettoyage](docs/Corrections_imports_et_nettoyage.md).
+
+## Identification des ouvertures à cinq ou dix coups
+
+Un coup complet = un coup blanc et un coup noir. `--opening-moves 5` inspecte jusqu'à 10 demi-coups et `--opening-moves 10` jusqu'à 20. Le notebook possède la variable `OPENING_MOVES`. La première étape construit le référentiel complet ; `prepare` utilise ensuite les coups `moves` pour identifier les parties avant de calculer les répétitions.
+
+La méthode exige au moins cinq coups complets dans la partie par défaut. Une famille connue par une ligne plus courte peut être retenue, mais la profondeur exacte reste visible. Les coups après la fenêtre ne contribuent pas au nom. Les positions équivalentes permettent certaines transpositions ; les ambiguïtés de noms sont signalées. Sans coups disponibles ou en cas de coups invalides, aucune étiquette API n'est utilisée comme remplacement silencieux.
+
+`Data/games_identifies.parquet` conserve l'identification locale et API. `Data/openings_observees.csv` recense les ouvertures rencontrées, tandis que `References/openings_complet.*` conserve toutes les lignes officielles. Pour changer de version, modifier `OPENINGS_REFERENCE_REV` puis reconstruire le cache avec `build_openings(refresh=True)`.

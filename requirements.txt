@@ -10,3 +10,4 @@ python-dotenv
 boto3
 nbformat>=5.7
 jupyter
+python-chess>=1.999

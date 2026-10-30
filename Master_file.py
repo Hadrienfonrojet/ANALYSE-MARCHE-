@@ -50,7 +50,7 @@ def verifier_parametres(users_per_seed, games_per_format, skip_collect, raw_file
     return None
 
 
-def creer_experience(users_per_seed, games_per_format, source=None):
+def creer_experience(users_per_seed, games_per_format, source=None, opening_moves=None):
     """Créer un dossier neuf et enregistrer les paramètres non secrets.
 
     experience.json indique la taille de collecte demandée et l'origine des
@@ -61,7 +61,10 @@ def creer_experience(users_per_seed, games_per_format, source=None):
     parameters = json.loads(manifest.read_text(encoding='utf-8'))
     parameters.update(users_per_seed=users_per_seed, games_per_format=games_per_format,
                       mode='reanalyse' if source is not None else 'collecte',
-                      source_file=str(source) if source is not None else None)
+                      source_file=str(source) if source is not None else None,
+                      opening_reference_revision=cfg.OPENINGS_REFERENCE_REV,
+                      opening_max_fullmoves=opening_moves or cfg.OPENING_MAX_FULLMOVES,
+                      opening_min_fullmoves=cfg.OPENING_MIN_FULLMOVES)
     manifest.write_text(json.dumps(parameters, ensure_ascii=False, indent=2), encoding='utf-8')
     print('Dossier de cette expérience :', run_dir)
     return run_dir
@@ -91,22 +94,22 @@ def obtenir_parties(users_per_seed, games_per_format, source=None):
 
 
 def creer_referentiel_ouvertures(raw):
-    """Extraire les ouvertures reconnues par Lichess dans les parties collectées.
+    """Télécharger et réunir les cinq tables officielles complètes Lichess.
 
     Le fichier source de cette étape est :
     Scripts_generation_data/Creation_openings_complet.py.
     Sortie : Data/openings_complet.parquet dans le dossier de cette expérience.
-    Ce référentiel contient les ouvertures observées, pas toutes les ouvertures
-    possibles. Il remplace l'ancienne liste manuelle de 50 ouvertures.
+    Ce référentiel contient toutes les lignes officielles a.tsv à e.tsv, même
+    si ces ouvertures ne figurent pas dans les parties collectées.
     """
-    print('2. Construction du référentiel des ouvertures observées')
-    openings = build_openings(raw)
-    print('Couples ECO et nom distincts :', len(openings))
+    print('2. Référentiel complet officiel Lichess : a.tsv à e.tsv')
+    openings = build_openings()
+    print('Lignes officielles ECO, nom et suite de coups :', len(openings))
     print('Fichier des ouvertures :', cfg.DATA_DIR / 'openings_complet.parquet')
     return openings
 
 
-def nettoyer_et_construire_variables(raw, openings):
+def nettoyer_et_construire_variables(raw, openings, opening_moves=None):
     """Préparer les variables utiles aux analyses, sans supprimer de fichiers.
 
     prepare nettoie les doublons joueur/partie, calcule le score, les tranches
@@ -114,7 +117,8 @@ def nettoyer_et_construire_variables(raw, openings):
     Sorties : Data/games_clean.parquet et Data/players_openings.parquet.
     """
     print('3. Nettoyage et construction des variables de répétition')
-    clean = prepare(raw, openings)
+    clean = prepare(raw, openings, max_fullmoves=opening_moves)
+    clean['opening_identification_status'].value_counts().to_csv(cfg.RESULTS_DIR / 'bilan_identification_ouvertures.csv')
     print('Observations analysables :', len(clean))
     return clean
 
@@ -136,17 +140,19 @@ def lancer_analyses(clean):
 
 
 def run_pipeline(users_per_seed=cfg.USERS_PER_SEED, games_per_format=cfg.GAMES_PER_FORMAT,
-                 skip_collect=False, upload=False, raw_file=None):
+                 skip_collect=False, upload=False, raw_file=None, opening_moves=None):
     """Exécuter les étapes dans l'ordre et renvoyer les données et les tests.
 
     L'envoi SSP Cloud intervient uniquement si upload=True. Les identifiants
     sont lus dans l'environnement privé ; boto3 est installé par requirements.txt.
     """
+    if opening_moves is not None and opening_moves < cfg.OPENING_MIN_FULLMOVES:
+        raise ValueError('La limite est inférieure au minimum de coups configuré.')
     source = verifier_parametres(users_per_seed, games_per_format, skip_collect, raw_file)
-    creer_experience(users_per_seed, games_per_format, source)
+    creer_experience(users_per_seed, games_per_format, source, opening_moves)
     raw = obtenir_parties(users_per_seed, games_per_format, source)
     openings = creer_referentiel_ouvertures(raw)
-    clean = nettoyer_et_construire_variables(raw, openings)
+    clean = nettoyer_et_construire_variables(raw, openings, opening_moves)
     tests = lancer_analyses(clean)
     if upload:
         print('5. Envoi de cette expérience vers SSP Cloud')
@@ -165,6 +171,8 @@ def main(argv=None):
                         help='Nombre maximum de parties par joueur et cadence')
     parser.add_argument('--skip-collect', action='store_true', help='Réutiliser une base brute existante')
     parser.add_argument('--raw-file', help='Chemin de la base brute à réanalyser')
+    parser.add_argument('--opening-moves', type=int, choices=[5, 10], default=cfg.OPENING_MAX_FULLMOVES,
+                        help='Identifier avec les 5 ou 10 premiers coups complets')
     parser.add_argument('--upload', action='store_true', help='Envoyer les sorties vers SSP Cloud après analyse')
     return run_pipeline(**vars(parser.parse_args(argv)))
 

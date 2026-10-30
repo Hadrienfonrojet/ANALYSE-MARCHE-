@@ -172,7 +172,7 @@ def construire_historiques(data):
 # 5. Fonction utilisée par le master et le notebook
 # --------------------------------------------------
 
-def prepare(raw, openings=None):
+def prepare(raw, openings=None, max_fullmoves=None):
     """Exécuter les étapes de préparation et enregistrer les deux tables utiles.
 
     La base brute d'entrée n'est pas modifiée. Les données invalides sont filtrées
@@ -180,6 +180,17 @@ def prepare(raw, openings=None):
     """
     if raw.empty:
         raise ValueError('Aucune partie à nettoyer.')
+
+    # Si un référentiel complet est fourni, les coups joués deviennent la source
+    # de l'identification. Les étiquettes API sont conservées dans api_*.
+    if openings is not None and 'position_key' in openings.columns:
+        from Scripts_generation_data.Identification_ouvertures import identify_games
+        raw = identify_games(raw, openings, max_fullmoves=max_fullmoves)
+        raw.to_parquet(cfg.DATA_DIR / 'games_identifies.parquet', index=False)
+        observed = raw.drop_duplicates('game_id').groupby(
+            ['eco', 'opening_name', 'opening_identification_status'], dropna=False,
+        ).size().reset_index(name='nombre_parties')
+        observed.to_csv(cfg.DATA_DIR / 'openings_observees.csv', index=False)
 
     data = nettoyer_identifiants(raw)
     data = ajouter_resultats_et_elo(data)

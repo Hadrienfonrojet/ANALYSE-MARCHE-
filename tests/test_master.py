@@ -31,6 +31,7 @@ class TestMaster(unittest.TestCase):
                 raw['timestamp_ms']=raw['timestamp'].astype('int64')//1_000_000
                 raw['rating']=1500;raw['opponent_rating']=1450;raw['rating_diff_opponent']=50
                 raw['eco']='B20'
+                raw['moves']='e4 e5 Nf3 Nc6 Bc4 Bc5 c3 Nf6 d3 d6 O-O O-O Re1 a6 Bb3 Ba7 Nbd2 h6 Nf1 Be6'
                 source=Path(td)/'ancienne_base.parquet';raw.to_parquet(source,index=False)
                 before=source.read_bytes()
                 with patch('requests.get',side_effect=AssertionError('Pas de collecte en réanalyse')):

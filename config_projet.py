@@ -38,3 +38,12 @@ GAMES_PER_FORMAT = int(os.getenv('GAMES_PER_FORMAT', '60'))
 def get_lichess_token():
     """Lire le secret au moment de la requête, sans le stocker dans les sorties."""
     return os.getenv('LICHESS_TOKEN') or None
+
+# Référentiel officiel figé : a.tsv à e.tsv, disponibles même hors réseau.
+OPENINGS_REFERENCE_REV = '712a58be746c143f4ab935b68acc50f4bac813eb'
+OPENINGS_CACHE_DIR = ROOT / 'References'
+OPENINGS_REFERENCE_DIR = OPENINGS_CACHE_DIR / 'lichess_openings' / OPENINGS_REFERENCE_REV
+
+# Un coup complet = un coup blanc + un coup noir.
+OPENING_MAX_FULLMOVES = int(os.getenv('OPENING_MAX_FULLMOVES', '10'))
+OPENING_MIN_FULLMOVES = int(os.getenv('OPENING_MIN_FULLMOVES', '5'))
