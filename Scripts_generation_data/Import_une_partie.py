@@ -18,8 +18,9 @@ import config_projet as cfg
 from Scripts_generation_data.Collecte_enrichie import request_games, parse_game
 
 
-# 1. Extraire les parties d'un joueur pour une cadence
+## Partie 1 - Extraire les parties d'un joueur pour une cadence
 # ------------------------------------------------------
+
 
 def extract_games_user(username, format_partie, nb_parties, token=None, max_retries=4):
     """Retourner les parties valides comme DataFrame, sans écrire de fichier.
@@ -32,7 +33,7 @@ def extract_games_user(username, format_partie, nb_parties, token=None, max_retr
     """
     username = str(username).strip().lower()
     if not username or nb_parties < 1:
-        raise ValueError('Fournir un pseudo et un nombre de parties positif.')
+        raise ValueError("Fournir un pseudo et un nombre de parties positif.")
 
     rows = []
     for game in request_games(username, format_partie, nb_parties, token, max_retries):
@@ -43,8 +44,9 @@ def extract_games_user(username, format_partie, nb_parties, token=None, max_retr
     return pd.DataFrame(rows)
 
 
-# 2. Assembler les joueurs et cadences du panel
+## Partie 2 - Assembler les joueurs et cadences du panel
 # -----------------------------------------------
+
 
 def import_games_enriched(users_df, token=None, n_per_format=60):
     """Collecter les cadences de cfg.FORMATS et conserver l'origine des joueurs.
@@ -56,46 +58,51 @@ def import_games_enriched(users_df, token=None, n_per_format=60):
     Les sauvegardes se font dans l'expérience courante, sans effacer les autres.
     """
     if n_per_format < 1:
-        raise ValueError('Le nombre de parties doit être positif.')
-    if 'user_id' not in users_df:
-        raise ValueError('La liste des joueurs doit contenir user_id.')
+        raise ValueError("Le nombre de parties doit être positif.")
+    if "user_id" not in users_df:
+        raise ValueError("La liste des joueurs doit contenir user_id.")
 
-    users = users_df.dropna(subset=['user_id']).copy()
-    users['user_id'] = users['user_id'].astype(str).str.strip().str.lower()
-    users = users[users['user_id'].ne('')].drop_duplicates('user_id')
+    users = users_df.dropna(subset=["user_id"]).copy()
+    users["user_id"] = users["user_id"].astype(str).str.strip().str.lower()
+    users = users[users["user_id"].ne("")].drop_duplicates("user_id")
     if users.empty:
-        raise ValueError('Aucun joueur valide dans la liste.')
+        raise ValueError("Aucun joueur valide dans la liste.")
 
     all_frames = []
 
-    for number, user in enumerate(users.to_dict('records'), 1):
+    for number, user in enumerate(users.to_dict("records"), 1):
         for cadence in cfg.FORMATS:
-            frame = extract_games_user(user['user_id'], cadence, n_per_format, token)
+            frame = extract_games_user(user["user_id"], cadence, n_per_format, token)
             if not frame.empty:
-                origin = user.get('seed_origin')
-                frame['seed_origin'] = origin if pd.notna(origin) else user['user_id']
+                origin = user.get("seed_origin")
+                frame["seed_origin"] = origin if pd.notna(origin) else user["user_id"]
                 all_frames.append(frame)
             time.sleep(0.15)
 
         if number % 10 == 0:
-            print('Joueurs traités :', number, '/', len(users))
+            print("Joueurs traités :", number, "/", len(users))
 
     if not all_frames:
-        raise RuntimeError('Aucune partie récupérée : vérifier les pseudos et les filtres.')
+        raise RuntimeError(
+            "Aucune partie récupérée : vérifier les pseudos et les filtres."
+        )
 
-    raw = pd.concat(all_frames, ignore_index=True)
-    raw = raw.drop_duplicates(['user_id', 'game_id'])
+    raw = pd.concat(
+        all_frames, ignore_index=True
+    )  ## Réunir les DataFrames joueur/cadence.
+    raw = raw.drop_duplicates(["user_id", "game_id"])
 
     cfg.DATA_DIR.mkdir(parents=True, exist_ok=True)
-    for cadence, frame in raw.groupby('format_partie'):
-        frame.to_parquet(cfg.DATA_DIR / f'games_{cadence}.parquet', index=False)
-    raw.to_parquet(cfg.DATA_DIR / 'games_enrichies_raw.parquet', index=False)
+    for cadence, frame in raw.groupby("format_partie"):
+        frame.to_parquet(cfg.DATA_DIR / f"games_{cadence}.parquet", index=False)
+    raw.to_parquet(cfg.DATA_DIR / "games_enrichies_raw.parquet", index=False)
 
     return raw
 
 
-# 3. Import à partir d'une liste de joueurs déjà enregistrée
+## Partie 3 - Import à partir d'une liste de joueurs déjà enregistrée
 # ------------------------------------------------------------
+
 
 def import_games_df(nb_parties_extraites, token=None, max_workers=1):
     """Lire la liste actuelle, ou la liste historique si elle est seule présente.
@@ -104,15 +111,20 @@ def import_games_df(nb_parties_extraites, token=None, max_workers=1):
     séquentiel. Les sorties par cadence de l'ancien projet sont conservées.
     """
     if max_workers != 1:
-        warnings.warn('Collecte séquentielle : max_workers est conservé pour compatibilité.', stacklevel=2)
+        warnings.warn(
+            "Collecte séquentielle : max_workers est conservé pour compatibilité.",
+            stacklevel=2,
+        )
 
     candidates = [
-        cfg.DATA_DIR / 'users_list_stratified.parquet',
-        cfg.DATA_DIR / 'users_list_global.parquet',
+        cfg.DATA_DIR / "users_list_stratified.parquet",
+        cfg.DATA_DIR / "users_list_global.parquet",
     ]
     source = next((path for path in candidates if path.is_file()), None)
     if source is None:
-        raise FileNotFoundError('Créer la liste des joueurs avant d’importer leurs parties.')
+        raise FileNotFoundError(
+            "Créer la liste des joueurs avant d’importer leurs parties."
+        )
 
     users = pd.read_parquet(source)
     return import_games_enriched(users, token, nb_parties_extraites)

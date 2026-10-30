@@ -23,8 +23,9 @@ import requests
 import config_projet as cfg
 
 
-# 1. Construire une position comparable, en ignorant les compteurs de coups
+## Partie 1 - Construire une position comparable, en ignorant les compteurs de coups
 # -------------------------------------------------------------------------
+
 
 def position_key(board):
     """Pièces, trait, droits de roque et en passant légal, sans les compteurs.
@@ -32,11 +33,12 @@ def position_key(board):
     Comparer ces quatre champs permet de reconnaître certaines transpositions :
     des ordres de coups différents peuvent atteindre la même position.
     """
-    return ' '.join(board.fen(en_passant='legal').split()[:4])
+    return " ".join(board.fen(en_passant="legal").split()[:4])
 
 
-# 2. Télécharger les sources, sans remplacer les autres expériences
+## Partie 2 - Télécharger les sources, sans remplacer les autres expériences
 # -----------------------------------------------------------------
+
 
 def download_sources(source_dir=None):
     """Récupérer a.tsv à e.tsv depuis une révision officielle figée.
@@ -45,32 +47,35 @@ def download_sources(source_dir=None):
     autre version, changer OPENINGS_REFERENCE_REV dans config_projet.py.
     Les fichiers déjà présents dans ce dossier de version ne sont pas retéléchargés.
     """
-    directory = Path(source_dir) if source_dir is not None else cfg.OPENINGS_REFERENCE_DIR
+    directory = (
+        Path(source_dir) if source_dir is not None else cfg.OPENINGS_REFERENCE_DIR
+    )
     directory.mkdir(parents=True, exist_ok=True)
 
-    for letter in 'abcde':
-        path = directory / (letter + '.tsv')
+    for letter in "abcde":
+        path = directory / (letter + ".tsv")
         if path.is_file():
             continue
 
-        url = f'https://raw.githubusercontent.com/lichess-org/chess-openings/{cfg.OPENINGS_REFERENCE_REV}/{letter}.tsv'
+        url = f"https://raw.githubusercontent.com/lichess-org/chess-openings/{cfg.OPENINGS_REFERENCE_REV}/{letter}.tsv"
         with requests.get(url, timeout=(15, 90)) as response:
             response.raise_for_status()
             content = response.content
 
         # Vérifier le format avant de conserver le fichier dans le cache.
-        frame = pd.read_csv(StringIO(content.decode('utf-8-sig')), sep='\t', dtype=str)
-        if not {'eco', 'name', 'pgn'}.issubset(frame.columns) or frame.empty:
-            raise ValueError('Référentiel Lichess invalide : ' + url)
-        temporary = path.with_suffix('.tsv.tmp')
+        frame = pd.read_csv(StringIO(content.decode("utf-8-sig")), sep="\t", dtype=str)
+        if not {"eco", "name", "pgn"}.issubset(frame.columns) or frame.empty:
+            raise ValueError("Référentiel Lichess invalide : " + url)
+        temporary = path.with_suffix(".tsv.tmp")
         temporary.write_bytes(content)
         temporary.replace(path)
 
     return directory
 
 
-# 3. Transformer toutes les lignes officielles en une grande table
+## Partie 3 - Transformer toutes les lignes officielles en une grande table
 # -----------------------------------------------------------------
+
 
 def read_reference(source_dir):
     """Garder toutes les ouvertures, y compris celles absentes de la collecte.
@@ -80,47 +85,52 @@ def read_reference(source_dir):
     sa position finale pour pouvoir la reconnaître dans une partie.
     """
     frames = []
-    for letter in 'abcde':
-        path = Path(source_dir) / (letter + '.tsv')
-        frame = pd.read_csv(path, sep='\t', dtype=str)
-        if not {'eco', 'name', 'pgn'}.issubset(frame.columns):
-            raise ValueError('Colonnes manquantes dans ' + str(path))
-        frame['source_file'] = path.name
+    for letter in "abcde":
+        path = Path(source_dir) / (letter + ".tsv")
+        frame = pd.read_csv(path, sep="\t", dtype=str)
+        if not {"eco", "name", "pgn"}.issubset(frame.columns):
+            raise ValueError("Colonnes manquantes dans " + str(path))
+        frame["source_file"] = path.name
         frames.append(frame)
 
-    reference = pd.concat(frames, ignore_index=True)
-    reference = reference.dropna(subset=['eco', 'name', 'pgn'])
-    reference = reference.drop_duplicates(['eco', 'name', 'pgn']).reset_index(drop=True)
+    reference = pd.concat(
+        frames, ignore_index=True
+    )  ## Un grand DataFrame réunit les cinq tables.
+    reference = reference.dropna(subset=["eco", "name", "pgn"])
+    reference = reference.drop_duplicates(["eco", "name", "pgn"]).reset_index(drop=True)
     positions, depths, uci_lines = [], [], []
 
     for row in reference.itertuples(index=False):
         game = chess.pgn.read_game(StringIO(row.pgn))
         if game is None or game.errors:
-            raise ValueError('PGN de référence invalide : ' + row.name)
+            raise ValueError("PGN de référence invalide : " + row.name)
 
         board = game.board()
         moves = list(game.mainline_moves())
         if not moves:
-            raise ValueError('Référence sans coups : ' + row.name)
+            raise ValueError("Référence sans coups : " + row.name)
         for move in moves:
             board.push(move)
 
         positions.append(position_key(board))
         depths.append(len(moves))
-        uci_lines.append(' '.join(move.uci() for move in moves))
+        uci_lines.append(" ".join(move.uci() for move in moves))
 
-    reference['position_key'] = positions
-    reference['reference_ply'] = depths
-    reference['uci'] = uci_lines
-    reference['family'] = reference['name'].str.split(':').str[0].str.strip()
-    reference['eco_group'] = reference['eco'].str[0]
-    reference['source_revision'] = cfg.OPENINGS_REFERENCE_REV
+    reference["position_key"] = (
+        positions  ## Une colonne de positions finales, une par ouverture officielle.
+    )
+    reference["reference_ply"] = depths
+    reference["uci"] = uci_lines
+    reference["family"] = reference["name"].str.split(":").str[0].str.strip()
+    reference["eco_group"] = reference["eco"].str[0]
+    reference["source_revision"] = cfg.OPENINGS_REFERENCE_REV
 
-    return reference.sort_values(['eco', 'name', 'pgn']).reset_index(drop=True)
+    return reference.sort_values(["eco", "name", "pgn"]).reset_index(drop=True)
 
 
-# 4. Fonction publique du master et du notebook
+## Partie 4 - Fonction publique du master et du notebook
 # ------------------------------------------------
+
 
 def build_openings(raw=None, source_dir=None, refresh=False):
     """Créer ou lire le référentiel complet officiel, puis le copier dans le run.
@@ -131,13 +141,13 @@ def build_openings(raw=None, source_dir=None, refresh=False):
     refresh reconstruit le cache à partir des sources de la révision choisie.
     """
     cache_dir = cfg.OPENINGS_CACHE_DIR
-    cache = cache_dir / 'openings_complet.parquet'
-    manifest = cache_dir / 'sources_reference.json'
+    cache = cache_dir / "openings_complet.parquet"
+    manifest = cache_dir / "sources_reference.json"
     cache_valid = False
 
     if source_dir is None and cache.is_file() and manifest.is_file() and not refresh:
-        metadata = json.loads(manifest.read_text(encoding='utf-8'))
-        cache_valid = metadata.get('revision') == cfg.OPENINGS_REFERENCE_REV
+        metadata = json.loads(manifest.read_text(encoding="utf-8"))
+        cache_valid = metadata.get("revision") == cfg.OPENINGS_REFERENCE_REV
 
     if cache_valid:
         reference = pd.read_parquet(cache)
@@ -148,22 +158,27 @@ def build_openings(raw=None, source_dir=None, refresh=False):
         if source_dir is None:
             cache_dir.mkdir(parents=True, exist_ok=True)
             reference.to_parquet(cache, index=False)
-            reference.to_csv(cache_dir / 'openings_complet.csv', index=False)
+            reference.to_csv(cache_dir / "openings_complet.csv", index=False)
             metadata = {
-                'repository': 'https://github.com/lichess-org/chess-openings',
-                'revision': cfg.OPENINGS_REFERENCE_REV,
-                'built_utc': datetime.now(timezone.utc).isoformat(),
-                'rows': len(reference),
-                'sha256': {letter + '.tsv': sha256((directory / (letter + '.tsv')).read_bytes()).hexdigest()
-                           for letter in 'abcde'},
+                "repository": "https://github.com/lichess-org/chess-openings",
+                "revision": cfg.OPENINGS_REFERENCE_REV,
+                "built_utc": datetime.now(timezone.utc).isoformat(),
+                "rows": len(reference),
+                "sha256": {
+                    letter
+                    + ".tsv": sha256(
+                        (directory / (letter + ".tsv")).read_bytes()
+                    ).hexdigest()
+                    for letter in "abcde"
+                },
             }
-            manifest.write_text(json.dumps(metadata, indent=2), encoding='utf-8')
+            manifest.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 
     cfg.DATA_DIR.mkdir(parents=True, exist_ok=True)
-    reference.to_parquet(cfg.DATA_DIR / 'openings_complet.parquet', index=False)
-    reference.to_csv(cfg.DATA_DIR / 'openings_complet.csv', index=False)
+    reference.to_parquet(cfg.DATA_DIR / "openings_complet.parquet", index=False)
+    reference.to_csv(cfg.DATA_DIR / "openings_complet.csv", index=False)
     return reference
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     print(build_openings())
