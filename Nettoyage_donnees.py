@@ -1,7 +1,7 @@
 """Nettoyage, identification famille, variables temporelles anti-fuite de données."""
 import numpy as np
 import pandas as pd
-from config_projet import DATA_DIR
+import config_projet as cfg
 
 def prepare(raw, openings=None):
     if raw.empty: raise ValueError('Aucune partie à nettoyer')
@@ -49,11 +49,11 @@ def prepare(raw, openings=None):
     df['session_id']=df['user_id']+'_'+df['session_num'].astype(str)
     df['game_in_session']=df.groupby('session_id').cumcount()+1
     df['game_index']=df.groupby('user_id').cumcount()+1
-    df.to_parquet(DATA_DIR/'games_clean.parquet',index=False)
-    df.groupby(['user_id','opening_family','color'],observed=True).agg(n=('win','size'),score_rate=('score','mean')).reset_index().to_parquet(DATA_DIR/'players_openings.parquet',index=False)
+    df.to_parquet(cfg.DATA_DIR/'games_clean.parquet',index=False)
+    df.groupby(['user_id','opening_family','color'],observed=True).agg(n=('win','size'),score_rate=('score','mean')).reset_index().to_parquet(cfg.DATA_DIR/'players_openings.parquet',index=False)
     return df
 
 if __name__=='__main__':
-    raw=pd.read_parquet(DATA_DIR/'games_enrichies_raw.parquet')
-    p=DATA_DIR/'openings_complet.parquet'
+    raw=pd.read_parquet(cfg.DATA_DIR/'games_enrichies_raw.parquet')
+    p=cfg.DATA_DIR/'openings_complet.parquet'
     print('lignes nettoyées',len(prepare(raw,pd.read_parquet(p) if p.exists() else None)))

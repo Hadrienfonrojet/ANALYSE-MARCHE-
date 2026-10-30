@@ -1,10 +1,10 @@
 """Référentiel des ouvertures observées, fourni par l'API des parties Lichess."""
 import pandas as pd
-from config_projet import DATA_DIR
+import config_projet as cfg
 
 def build_openings(raw=None):
     if raw is None:
-        raw = pd.read_parquet(DATA_DIR / 'games_enrichies_raw.parquet')
+        raw = pd.read_parquet(cfg.DATA_DIR / 'games_enrichies_raw.parquet')
     reference = raw[['eco', 'opening_name']].dropna().drop_duplicates()
     reference = reference.rename(columns={'opening_name': 'name'})
     reference = reference[reference['name'].ne('')].copy()
@@ -12,7 +12,7 @@ def build_openings(raw=None):
     reference['eco_group'] = reference['eco'].str[0]
     reference['source'] = 'lichess_api'
     reference = reference.sort_values(['eco', 'name']).reset_index(drop=True)
-    reference.to_parquet(DATA_DIR / 'openings_complet.parquet', index=False)
+    reference.to_parquet(cfg.DATA_DIR / 'openings_complet.parquet', index=False)
     return reference
 
 if __name__ == '__main__':

@@ -2,7 +2,8 @@
 import json, time, random
 import pandas as pd
 import requests
-from config_projet import DATA_DIR, FORMATS
+import config_projet as cfg
+from config_projet import FORMATS
 
 def request_games(username, fmt, n, token, retries=4):
     headers={'Accept':'application/x-ndjson'}
@@ -49,7 +50,7 @@ def discover_stratified(seeds, token, target_per_seed=30, neighbors_per_user=10,
             time.sleep(.15)
     if not records: raise ValueError('Aucun joueur configuré')
     df=pd.DataFrame(records).drop_duplicates('user_id')
-    df.to_parquet(DATA_DIR/'users_list_stratified.parquet',index=False)
+    df.to_parquet(cfg.DATA_DIR/'users_list_stratified.parquet',index=False)
     return df
 
 def parse_game(g, user, fmt, origin):
@@ -90,5 +91,5 @@ def collect_games(users, token, n_per_format=60):
     df=pd.DataFrame(rows)
     if df.empty: raise RuntimeError('Aucune partie récupérée : vérifier réseau et pseudos')
     df.drop_duplicates(['user_id','game_id'],inplace=True)
-    df.to_parquet(DATA_DIR/'games_enrichies_raw.parquet',index=False)
+    df.to_parquet(cfg.DATA_DIR/'games_enrichies_raw.parquet',index=False)
     return df

@@ -9,3 +9,5 @@ Resultats/*.png
 .env.*
 !.env.example
 .venv/
+
+Collectes/
