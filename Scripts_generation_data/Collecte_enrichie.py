@@ -1,95 +1,154 @@
-"""Complète l'import existant par un panel multi-graines, avec variables parties/adversaires."""
-import json, time, random
-import pandas as pd
+"""Fonctions communes de l'API Lichess : réseau et conversion d'une partie.
+
+Les parcours de joueurs sont détaillés dans Import_des_users.py et la collecte
+multi-joueurs dans Import_une_partie.py. Les deux anciennes fonctions publiques
+restent disponibles ici pour les notebooks et appels existants.
+"""
+
+import json
+import time
+
 import requests
-import config_projet as cfg
-from config_projet import FORMATS
 
-def request_games(username, fmt, n, token, retries=4):
-    headers={'Accept':'application/x-ndjson'}
-    if token: headers['Authorization']='Bearer '+token
+
+# 1. Lire le flux de parties avec une gestion explicite des échecs réseau
+# ------------------------------------------------------------------------
+
+def request_games(username, fmt, n, token=None, retries=4):
+    """Renvoyer les objets JSON une fois chacun, même après une reprise.
+
+    opening=true demande la classification Lichess ; moves=true conserve les coups.
+    sort=dateAsc sélectionne un historique croissant : on ne prétend pas analyser
+    nécessairement les parties les plus récentes. En cas de limitation 429,
+    Retry-After est respecté avec un minimum de 60 secondes.
+    """
+    if n < 1 or retries < 1:
+        raise ValueError('Le nombre de parties et de tentatives doit être positif.')
+
+    headers = {'Accept': 'application/x-ndjson'}
+    if token:
+        headers['Authorization'] = 'Bearer ' + token
+
+    parameters = {
+        'max': n, 'rated': 'true', 'perfType': fmt,
+        'opening': 'true', 'moves': 'true', 'sort': 'dateAsc',
+        'variant': 'standard', 'finished': 'true',
+    }
     seen = set()
-    for retry in range(retries):
-        try:
-            r=requests.get('https://lichess.org/api/games/user/'+username,
-                params={'max':n,'rated':'true','perfType':fmt,'opening':'true','moves':'true','sort':'dateAsc','variant':'standard','finished':'true'},
-                headers=headers,stream=True,timeout=(15,120))
-            if r.status_code==429:
-                r.close(); time.sleep(max(60,int(r.headers.get('Retry-After','60')))); continue
-            r.raise_for_status()
-            for line in r.iter_lines():
-                if line:
-                    game = json.loads(line)
-                    if game.get('id') not in seen:
-                        seen.add(game.get('id'))
-                        yield game
-            r.close(); return
-        except requests.RequestException as exc:
-            if retry == retries - 1:
-                raise RuntimeError(f'Collecte Lichess échouée pour {username} ({fmt})') from exc
-            time.sleep(2**retry)
-    raise RuntimeError(f'Limite API persistante pour {username} ({fmt})')
 
-def discover_stratified(seeds, token, target_per_seed=30, neighbors_per_user=10, seed=42):
-    rng=random.Random(seed); records=[]; visited=set()
-    for seed_user in seeds:
-        queue=[(seed_user.lower(), 0)]; count=0
-        while queue and count<target_per_seed:
-            name, depth=queue.pop(0)
-            if name in visited: continue
-            visited.add(name); count+=1
-            records.append({'user_id':name,'seed_origin':seed_user,'discovery_depth':depth})
-            games=list(request_games(name,'blitz',neighbors_per_user,token))
-            adversaries=[]
-            for g in games:
-                for col in ('white','black'):
-                    ident=g.get('players',{}).get(col,{}).get('user',{}).get('id')
-                    if ident and ident.lower()!=name: adversaries.append(ident.lower())
-            rng.shuffle(adversaries)
-            queue.extend([(a, depth + 1) for a in dict.fromkeys(adversaries) if a not in visited])
-            time.sleep(.15)
-    if not records: raise ValueError('Aucun joueur configuré')
-    df=pd.DataFrame(records).drop_duplicates('user_id')
-    df.to_parquet(cfg.DATA_DIR/'users_list_stratified.parquet',index=False)
-    return df
+    for attempt in range(retries):
+        try:
+            # Le contexte ferme la réponse aussi lorsqu'une erreur HTTP survient.
+            with requests.get(
+                'https://lichess.org/api/games/user/' + username,
+                params=parameters, headers=headers,
+                stream=True, timeout=(15, 120),
+            ) as response:
+                if response.status_code == 429:
+                    delay = response.headers.get('Retry-After', '60')
+                    seconds = int(delay) if delay.isdigit() else 60
+                    time.sleep(max(60, seconds))
+                    continue
+
+                response.raise_for_status()
+                for line in response.iter_lines():
+                    if not line:
+                        continue
+                    try:
+                        game = json.loads(line)
+                    except json.JSONDecodeError as error:
+                        raise RuntimeError('Réponse JSON Lichess invalide ; collecte interrompue.') from error
+                    identifier = game.get('id')
+                    if identifier and identifier not in seen:
+                        seen.add(identifier)
+                        yield game
+                return
+
+        except requests.RequestException as error:
+            if attempt == retries - 1:
+                raise RuntimeError(f'Collecte échouée pour {username} ({fmt}).') from error
+            time.sleep(2 ** attempt)
+
+    raise RuntimeError(f'Limite API persistante pour {username} ({fmt}).')
+
+
+# 2. Choisir le point de vue du joueur et extraire les variables
+# ---------------------------------------------------------------
 
 def parse_game(g, user, fmt, origin):
-    players=g.get('players',{})
-    if not all(x in players for x in ('white','black')): return None
-    wid=(players['white'].get('user') or {}).get('id','').lower()
-    bid=(players['black'].get('user') or {}).get('id','').lower()
-    if user not in (wid,bid): return None
-    col='white' if user==wid else 'black'; opp='black' if col=='white' else 'white'
-    winner=g.get('winner'); status=g.get('status','')
-    if status in ('created','started','aborted','noStart','unknownFinish'): return None
-    result='Draw' if not winner else 'Win' if winner==col else 'Loss'
-    me=players[col]; other=players[opp]; opening=g.get('opening') or {}
-    rating=me.get('rating'); opp_rating=other.get('rating')
-    return {'game_id':g.get('id'),'user_id':user,'seed_origin':origin,'format_partie':fmt,
-      'timestamp_ms':g.get('createdAt'),'last_move_ms':g.get('lastMoveAt'),
-      'result':result,'win':int(result=='Win'),'score':.5 if result=='Draw' else int(result=='Win'),
-      'is_draw':int(result=='Draw'),'color':col,'is_white':int(col=='white'),
-      'rating':rating,'opponent_rating':opp_rating,
-      'rating_diff_opponent':(rating-opp_rating) if isinstance(rating,(int,float)) and isinstance(opp_rating,(int,float)) else None,
-      'rating_diff':me.get('ratingDiff'),'opponent_id':(other.get('user') or {}).get('id'),
-      'eco':opening.get('eco'),'opening_name':opening.get('name'),
-      'opening_ply':opening.get('ply'),'moves':g.get('moves',''),
-      'status':status,'rated':g.get('rated'), 'variant':(g.get('variant') or ''),
-      'speed':g.get('speed'), 'clock_initial':(g.get('clock') or {}).get('initial'),
-      'clock_increment':(g.get('clock') or {}).get('increment')}
+    """Convertir une partie terminée en une observation joueur/partie.
 
-def collect_games(users, token, n_per_format=60):
-    rows=[]
-    for i,rec in enumerate(users.to_dict('records'),1):
-        name=rec['user_id']; origin=rec['seed_origin']
-        for fmt in FORMATS:
-            for game in request_games(name,fmt,n_per_format,token):
-                row=parse_game(game,name,fmt,origin)
-                if row: rows.append(row)
-            time.sleep(.15)
-        if i%10==0: print('joueurs traités',i,'/',len(users))
-    df=pd.DataFrame(rows)
-    if df.empty: raise RuntimeError('Aucune partie récupérée : vérifier réseau et pseudos')
-    df.drop_duplicates(['user_id','game_id'],inplace=True)
-    df.to_parquet(cfg.DATA_DIR/'games_enrichies_raw.parquet',index=False)
-    return df
+    Une partie anonyme, sans identifiant ou sans le joueur demandé est écartée.
+    L'absence de winner ne suffit pas pour classer une partie commencée comme nulle :
+    seuls des statuts terminaux reconnus sont admis.
+    """
+    players = g.get('players') or {}
+    if not all(color in players for color in ['white', 'black']):
+        return None
+    if not g.get('id') or g.get('createdAt') is None:
+        return None
+
+    identities = {
+        color: ((players[color] or {}).get('user') or {}).get('id', '').lower()
+        for color in ['white', 'black']
+    }
+    user = str(user).strip().lower()
+    if user not in identities.values() or not user:
+        return None
+
+    terminal = {'mate', 'resign', 'stalemate', 'timeout', 'draw', 'outoftime',
+                'cheat', 'variantEnd'}
+    status = g.get('status')
+    if status not in terminal:
+        return None
+
+    color = 'white' if identities['white'] == user else 'black'
+    opponent_color = 'black' if color == 'white' else 'white'
+    winner = g.get('winner')
+    if winner not in (None, 'white', 'black'):
+        return None
+    if winner is None and status not in {'draw', 'stalemate', 'outoftime'}:
+        return None
+
+    result = 'Draw' if winner is None else ('Win' if winner == color else 'Loss')
+    me = players[color] or {}
+    other = players[opponent_color] or {}
+    opening = g.get('opening') or {}
+    clock = g.get('clock') or {}
+    rating, opponent_rating = me.get('rating'), other.get('rating')
+    difference = (
+        rating - opponent_rating
+        if isinstance(rating, (int, float)) and isinstance(opponent_rating, (int, float))
+        else None
+    )
+
+    return {
+        'game_id': g['id'], 'user_id': user, 'seed_origin': origin,
+        'format_partie': fmt, 'timestamp_ms': g['createdAt'],
+        'last_move_ms': g.get('lastMoveAt'), 'result': result,
+        'win': int(result == 'Win'), 'score': {'Win': 1., 'Draw': .5, 'Loss': 0.}[result],
+        'is_draw': int(result == 'Draw'), 'color': color, 'is_white': int(color == 'white'),
+        'rating': rating, 'opponent_rating': opponent_rating,
+        'rating_diff_opponent': difference, 'rating_diff': me.get('ratingDiff'),
+        'opponent_id': (other.get('user') or {}).get('id'),
+        'eco': opening.get('eco'), 'opening_name': opening.get('name'),
+        'opening_ply': opening.get('ply'), 'moves': g.get('moves', ''),
+        'status': status, 'rated': g.get('rated'), 'variant': g.get('variant', ''),
+        'speed': g.get('speed'), 'clock_initial': clock.get('initial'),
+        'clock_increment': clock.get('increment'),
+    }
+
+
+# 3. Compatibilité avec les anciens notebooks
+# ---------------------------------------------
+
+def discover_stratified(seeds, token=None, target_per_seed=30, neighbors_per_user=10, seed=42):
+    """Le parcours est désormais expliqué dans le fichier historique des users."""
+    from Scripts_generation_data.Import_des_users import discover_stratified as discover
+    return discover(seeds, token, target_per_seed, neighbors_per_user, seed)
+
+
+def collect_games(users, token=None, n_per_format=60):
+    """L'assemblage est désormais expliqué dans le fichier historique des parties."""
+    from Scripts_generation_data.Import_une_partie import import_games_enriched
+    return import_games_enriched(users, token, n_per_format)

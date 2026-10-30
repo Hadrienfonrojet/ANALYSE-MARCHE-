@@ -21,7 +21,8 @@ from pathlib import Path
 
 import pandas as pd
 import config_projet as cfg
-from Scripts_generation_data.Collecte_enrichie import discover_stratified, collect_games
+from Scripts_generation_data.Import_des_users import discover_stratified
+from Scripts_generation_data.Import_une_partie import import_games_enriched as collect_games
 from Scripts_generation_data.Creation_openings_complet import build_openings
 from Nettoyage_donnees import prepare
 from Analyse_ouvertures import analyze

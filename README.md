@@ -68,3 +68,12 @@ python -m unittest discover -s tests -v
 ```
 
 Les données des tests sont simulées et ne constituent pas des résultats sur Lichess. Les tests réseau et l'accès SSP Cloud ne sont pas validés par ces tests hors ligne.
+
+## Lire les fichiers historiques d’import et de nettoyage
+
+- [Import_des_users.py](Scripts_generation_data/Import_des_users.py) contient le parcours des adversaires, l’origine des joueurs, la profondeur de découverte et les fonctions historiques `discover_users_random_walk` et `discover_users_five_seeds`.
+- [Import_une_partie.py](Scripts_generation_data/Import_une_partie.py) contient l’extraction par joueur, l’assemblage par cadence et la lecture des listes de comptes actuelles ou historiques.
+- [Collecte_enrichie.py](Scripts_generation_data/Collecte_enrichie.py) contient les fonctions HTTP et le parsing de la réponse API ; ses anciens points d’entrée restent disponibles pour le notebook.
+- [Nettoyage_donnees.py](Nettoyage_donnees.py) présente séparément les identifiants, les scores et Elo, la jointure des ouvertures, les historiques et les sauvegardes.
+
+Les erreurs réseau persistantes sont signalées, les réponses sont fermées même après échec, les pseudos sont normalisés avant dédoublonnage et les identifiants absents sont retirés avant conversion en texte. Les ouvertures inconnues ne deviennent pas de fausses répétitions. Le détail des corrections est dans [Corrections des imports et du nettoyage](docs/Corrections_imports_et_nettoyage.md).
