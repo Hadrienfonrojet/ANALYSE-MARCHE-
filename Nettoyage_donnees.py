@@ -35,14 +35,8 @@ def prepare(raw, openings=None):
         df['previous_'+label+'_time']=df.groupby(keys,observed=True)['timestamp'].shift(1)
     df['experience_opening_prior']=df.groupby(['user_id','color','opening_family'],observed=True).cumcount()
     df['experience_log']=np.log1p(df['experience_opening_prior'])
-    df['prev_opening_same_color']=df.groupby(['user_id','color'],observed=True)['opening_family'].shift(1)
-    df['prev_result_same_color']=df.groupby(['user_id','color'],observed=True)['result'].shift(1)
-    df['repeat_same_color']=(df['opening_family']==df['prev_opening_same_color']).astype('float')
-    df.loc[df['prev_opening_same_color'].isna(),'repeat_same_color']=np.nan
-    df['prev_result_all']=df.groupby('user_id')['result'].shift(1)
-    df['prev_opening_all']=df.groupby('user_id')['opening_family'].shift(1)
-    df['repeat_all']=(df['opening_family']==df['prev_opening_all']).astype('float')
-    df.loc[df['prev_opening_all'].isna(),'repeat_all']=np.nan
+    from analyses.Tests_repetition import add_transitions
+    df = add_transitions(df)
     df['gap_minutes']=df.groupby('user_id')['timestamp'].diff().dt.total_seconds()/60
     df['new_session']=(df['gap_minutes'].isna() | (df['gap_minutes']>30)).astype(int)
     df['session_num']=df.groupby('user_id')['new_session'].cumsum()
