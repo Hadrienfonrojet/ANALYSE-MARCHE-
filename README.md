@@ -1,83 +1,124 @@
-# Projet Lichess et répétition des ouvertures
+# Ouvertures et victoires successives — projet original complété
+
+> Après une victoire, gagner la partie suivante est-il plus fréquent lorsqu’on répète l’ouverture plutôt que lorsqu’on en change ?
+
+Ce dépôt repart du dossier **Projet-info-2A-main**. Il conserve ses importeurs et son notebook détaillé, puis ajoute une partie VI sur les ouvertures. Les anciens blocs remplacés sont entourés de lignes `##` et entièrement commentés : ils restent lisibles, sans s’exécuter une deuxième fois.
 
 [Ouvrir le notebook dans Colab](https://colab.research.google.com/github/Hadrienfonrojet/ANALYSE-MARCHE-/blob/main/Analyse_data.ipynb)
 
-Le projet est organisé pour comprendre et reproduire chaque calcul. Les scripts comportent des sections `## Partie ...`, des lignes espacées et des commentaires distinguant une colonne, une liste et un DataFrame.
+[L’ancien projet GitHub et son historique sont conservés dans un dépôt distinct](https://github.com/Hadrienfonrojet/ANALYSE-MARCHE-ARCHIVE-2026-11-03). L’archive est privée : il faut être connecté avec le compte autorisé. Une branche `archive/projet-avant-retour-original-2026-11-03` conserve aussi cet état.
 
-## Ordre de lecture
+## Lire et comprendre
 
-1. [Guide pédagogique PDF](docs/Guide_pedagogique_analyse.pdf) : notions, rôle des fichiers, hypothèses et interprétation.
-2. [Notebook Analyse_data.ipynb](Analyse_data.ipynb) : code et résultats cellule par cellule.
-3. [Nettoyage_donnees.py](Nettoyage_donnees.py) et [Tests_repetition.py](analyses/Tests_repetition.py) : colonnes d'historique et tests.
-4. [Analyse_ouvertures.py](analyses/Analyse_ouvertures.py) : les cinq parties du parcours d'analyse.
-5. [Regression_multiple.py](analyses/Regression_multiple.py) : un modèle explicite et son test F.
-6. [Master_file.py](Master_file.py) : enchaînement complet, collecte et sorties.
+1. [ANALYSE_DU_PROJET.md](ANALYSE_DU_PROJET.md) : ce qui change, les questions, les limites et le rôle des fichiers.
+2. [Analyse_data.ipynb](Analyse_data.ipynb) : sections I–V initiales conservées, puis partie VI sur la répétition d’ouverture.
+3. [Analyse_repetition_ouverture.py](Analyse_repetition_ouverture.py) : fonctions commentées pour préparer les transitions, décrire, tester et ajuster.
+4. [Scripts_generation_data/Creation_Df_openings.py](Scripts_generation_data/Creation_Df_openings.py) : ancien référentiel désactivé, puis référentiel officiel et reconnaissance par position.
 
-## Plan de l'analyse
+Le notebook contient **77 cellules**. Les commentaires historiques de résultats sont signalés et repliés : ce sont des textes de l’ancien rapport, pas des conclusions recalculées sur tes nouvelles données. Les sections II–V restent une comparaison Hot Hand ; la partie VI répond à la nouvelle question.
 
-**Partie 1** : créer les DataFrames utiles et les colonnes de passé. `prev_opening_same_color` est une colonne contenant, à chaque ligne, l'ouverture de la précédente partie observée de ce joueur avec la même couleur. Ce n'est pas une liste de ses parties.
+## Installation
 
-**Partie 2** : fonction du χ² avec tableau observé, attentes, formule, degrés de liberté et V de Cramér.
-
-**Partie 3** : dix applications annoncées : résultat précédent × répétition et répétition × résultat courant sous quatre définitions, puis deux questions sur la répétition de la couleur. Holm corrige les tests dont les attentes sont suffisantes. Les stratifications et contrôles supplémentaires restent facultatifs.
-
-**Partie 4** : quatre tests exacts de Fisher sur des tables 2×2, puis une régression multiple du score. Fisher exact n'est pas le test F de Fisher-Snedecor : le premier porte sur des effectifs, le second sur les coefficients du modèle. Le F classique est pédagogique ; le F de Wald avec covariance groupée par joueur est approximatif et nécessite assez de groupes.
-
-**Partie 5** : statistiques descriptives (`mean`, `std`, `median`, `min`, `max`), tableaux par couleur/cadence/famille et graphiques simples. Les descriptifs sont présentés à la fin du parcours, mais doivent aussi être consultés avant l'interprétation des tests.
-
-## Référentiel complet des ouvertures
-
-Le [grand répertoire](References/openings_complet.csv) réunit **3865 lignes** des cinq tables officielles `a.tsv` à `e.tsv`. Les sources et leur version sont dans `References/`. [Creation_openings_complet.py](Scripts_generation_data/Creation_openings_complet.py) construit la table et [Identification_ouvertures.py](Scripts_generation_data/Identification_ouvertures.py) rejoue les positions des cinq ou dix premiers coups complets. Les étiquettes API sont conservées séparément.
-
-Une référence courte peut identifier seulement une famille générale. Les variantes longues ne sont pas attribuées avant leur position finale. Profondeur de reconnaissance, transpositions et ambiguïtés sont expliquées dans [Introduction aux ouvertures](docs/Introduction_aux_ouvertures.md).
-
-## Installation et lancement
-
-```sh
+```bash
 python -m pip install -r requirements.txt
 cp .env.example .env
-python Master_file.py --users-per-seed 1 --games-per-format 20 --opening-moves 10
 ```
 
-Renseigner les pseudos dans `LICHESS_SEEDS`. Le jeton facultatif est `LICHESS_TOKEN`. Les bibliothèques, dont `boto3` et `python-chess`, sont installées par requirements.txt ; aucun module métier ne lance pip à l'import.
+`config_projet.py` et `.env.example` sont conservés de la version GitHub précédente. Le vrai `.env` reste privé, ignoré par Git. Ne jamais y recopier des secrets dans un fichier suivi. `boto3` est déjà dans requirements.txt ; le pipeline n’installe plus de bibliothèque automatiquement.
 
-Pour réanalyser une base sans relancer la collecte :
+Paramètres de stockage conservés :
 
-```sh
-python Master_file.py --skip-collect --raw-file chemin/vers/games_enrichies_raw.parquet --opening-moves 5
+```text
+S3_BUCKET=hadrien2703
+S3_PREFIX=diffusion/projet_ouvertures
 ```
 
-Chaque lancement crée une nouvelle expérience dans `Collectes/<identifiant>/`. Aucune ancienne base n'est effacée. La première cellule Colab crée un nouveau clone du dépôt. Redémarrer le noyau lors d'un changement de version pour ne pas garder d'anciens modules en mémoire.
+Les identifiants AWS restent dans l’environnement ou ton `.env` privé. Le nom habituel du token est `LICHESS_TOKEN` ; le Master accepte aussi l’ancien `jeton_api`.
 
-## Paramétrage
+## Collecter les parties de cinq comptes choisis
 
-`config_projet.py` regroupe chemins, pseudos, cadences, taille de collecte, référentiel, fenêtre de coups et paramètres S3. Le `.env` privé peut remplacer les valeurs par défaut. `RUN_REGRESSIONS=true` active le modèle multiple ; dans le notebook la variable du même nom permet de le désactiver. Les paramètres non secrets sont enregistrés avec l'expérience.
+```bash
+python Master_file.py --users pseudo_1 pseudo_2 pseudo_3 pseudo_4 pseudo_5 --upload
+```
 
-L'envoi SSP Cloud reste explicite avec `--upload`, sous `s3://hadrien2703/diffusion/projet_ouvertures/<identifiant>/`. Il ne supprime pas d'objets et ne demande pas d'ACL publique. Les vrais secrets ne doivent jamais être publiés.
+Remplacer les cinq exemples par tes vrais comptes ; aucun compte supplémentaire n’est découvert dans ce mode. Les importeurs contiennent ce même exemple dans un bloc entre guillemets, sans changement de leurs fonctions.
 
-## Lire les sorties
+Sans `--users`, le Master utilise les graines `LICHESS_SEEDS` et la découverte d’adversaires originale. `USERS_PER_SEED` et `GAMES_PER_FORMAT` sont lus dans la configuration ; ce dernier paramètre est un maximum de parties **par joueur et par cadence**. Les fonctions originales de collecte ne sont pas réécrites : leurs limites réseau, d’échantillonnage et de continuité restent décrites dans ANALYSE_DU_PROJET.md.
 
-- `Data/games_enrichies_raw.parquet` : base brute conservée.
-- `Data/openings_complet.*` : référentiel officiel complet de cette expérience.
-- `Data/games_identifies.parquet` et `openings_observees.csv` : reconnaissance locale et étiquettes API.
-- `Data/games_clean.parquet` : base préparée avec répétitions.
-- `Resultats/tests_chi2.csv` et `repetition/` : χ², Holm, observés/attendus/résidus et taux.
-- `Resultats/fisher/tests_fisher_exact.csv` : tests exacts 2×2 et correction de Holm séparée.
-- `Resultats/regression_multiple_resume.csv` et `_coefficients.csv` : modèle, statut, coefficients, R² et tests F. Un modèle non estimable affiche une raison ; les valeurs p groupées restent manquantes s'il y a trop peu de joueurs.
-- `Resultats/statistiques_descriptives.csv`, `description_*.csv` et PNG : résumés et graphiques.
+L’importeur original ne garde pas les coups et l’Elo adverse : le Master complète donc les parties par IDs, par lots de 300 via l’API officielle. Cela ajoute une étape de téléchargement explicite, puis sauvegarde la base enrichie. L’ouverture API est gardée séparément ; la reconnaissance locale utilise réellement la fenêtre de coups choisie.
 
-Les anciens ensembles de nombreuses régressions logistiques sont remplacés dans le parcours principal par un seul modèle linéaire du score, lisible et commenté.
+Chaque exécution crée :
 
-## Limites statistiques
+```text
+Collectes/<identifiant_unique>/
+    experience.json
+    Data/
+        openings.parquet
+        users_list_global.parquet
+        games_<cadence>.parquet
+        dfs_games_brut.parquet
+        dfs_games_enrichi.parquet
+        dfs_games.parquet
+        games_clean.parquet
+    Resultats/
+        tests_repetition.csv
+        taux_<cadre>.csv
+        observe_<cadre>.csv
+        attendu_<cadre>.csv
+        transitions_<cadre>.parquet
+        bootstrap_joueurs.csv
+        regression_diagnostic.json
+        regression_coefficients.csv
+        statistiques_descriptives.csv
+        descriptifs_ouvertures_couleur.csv
+        qualite.json
+        *.png
+```
 
-Les valeurs p supposent un modèle d'échantillonnage et des hypothèses qui ne sont pas garanties par une collecte d'adversaires. Un joueur contribue plusieurs parties et des adversaires peuvent être communs. `valid` ne vérifie que les effectifs attendus du χ². Les valeurs p sont exploratoires, même après Holm ; cette correction ne rend pas les observations indépendantes.
+Les fichiers enrichis/users/cadences n’existent que si l’étape correspondante est exécutée. Tous les fichiers locaux restent conservés. Avec `--upload`, cette collecte est copiée sous `s3://hadrien2703/diffusion/projet_ouvertures/<identifiant_unique>/`, sans effacement et sans ACL publique. Un marqueur conditionnel refuse de réutiliser un identifiant déjà réservé. Si un envoi échoue, les données locales restent disponibles ; créer une nouvelle collecte pour un nouvel envoi.
 
-Le modèle du score est linéaire malgré une variable discrète bornée. Son F classique ne bénéficie pas ici d'une justification exacte ; le test de Wald groupé est une approximation. Les résultats sont des associations conditionnelles, jamais des preuves causales.
+## Réutiliser une base sans refaire la collecte
 
-## Vérifier le logiciel
+```bash
+python Master_file.py --raw-file chemin/vers/dfs_games_enrichi.parquet
+```
 
-```sh
+Pour compléter un ancien parquet depuis les IDs, avec un accès API explicite :
+
+```bash
+python Master_file.py --raw-file chemin/vers/ancien.parquet --enrich-api --upload
+```
+
+Sans coups, la reconnaissance locale du Master est indiquée inconnue ; sans Elo adverse, la régression peut être non estimable. Le code ne fabrique aucune de ces informations. Modifier `OPENING_MAX_FULLMOVES` dans ton `.env` privé pour choisir 5 ou 10 coups ; le minimum de disponibilité est 5 coups complets par défaut.
+
+## Utiliser le notebook
+
+**DEMO=True par défaut** : les données sont simulées, pour apprendre et vérifier le code sans S3 ni token. Elles ne permettent aucune conclusion réelle sur Lichess.
+
+Pour tes données, dans I.2 :
+
+```python
+DEMO = False
+LOCAL_FILE = "Collectes/TON_IDENTIFIANT/Data/dfs_games.parquet"
+# ou, sans fichier local :
+LOCAL_FILE = None
+S3_RUN_ID = "TON_IDENTIFIANT"
+```
+
+Les variables AWS privées doivent être disponibles dans l’environnement Colab ou un `.env` local jamais publié. Sur Colab, la cellule d’installation récupère le dépôt ; redémarrer l’environnement pour charger une version plus récente plutôt que garder un ancien clone en mémoire.
+
+En VI, `OPENING_MOVES=5` ou `10` choisit la fenêtre. Chaque exécution crée un nouveau dossier de résultats. L’envoi S3 du notebook est désactivé par défaut et demande `UPLOAD_S3=True`.
+
+## Tests
+
+```bash
 python -m unittest discover -s tests -v
 ```
 
-Les tests utilisent des données simulées, des tableaux connus et des requêtes simulées. Ils vérifient l'identification, le nettoyage, le χ², Fisher exact, la régression, le F et les cellules du notebook. Ils ne valident pas les autorisations réseau ou SSP Cloud réelles.
+Tests hors réseau : référentiel, fenêtre 5/10, nulles, dernières parties, ouvertures inconnues, distinction même couleur, tableau χ² connu, Fisher, bootstrap, modèle groupé sur données simulées, protection des sauvegardes, envoi S3 simulé et Master sans collecte. Le notebook complet est également exécuté en DEMO lors de la vérification livrée.
+
+Une collecte réelle et les permissions SSP Cloud ne sont pas validées par ces tests simulés. Les importeurs originaux conservés peuvent encore rencontrer leurs erreurs réseau connues : voir le document d’analyse.
+
+## Sources
+
+[Référentiel officiel CC0](https://github.com/lichess-org/chess-openings) · [Export par IDs](https://github.com/lichess-org/api/blob/master/doc/specs/tags/games/api-games-export-_ids.yaml) · [Consignes API](https://lichess.org/page/api-tips).

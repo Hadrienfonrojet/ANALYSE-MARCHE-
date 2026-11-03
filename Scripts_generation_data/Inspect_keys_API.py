@@ -1,30 +1,12 @@
-"""Inspection explicite des métadonnées des parties, sans afficher de jeton."""
 
-import os
-import config_projet as cfg
-from config_projet import SEED_USERS
-from Scripts_generation_data.Collecte_enrichie import request_games
+## ########################################################################
+## ANCIEN TOKEN EN CLAIR — NON EXÉCUTÉ
+## token = "[SECRET RETIRÉ]"
+## FIN ANCIEN TOKEN EN CLAIR
+## ########################################################################
 
-
-def inspect_games(username, fmt="classical", n=5, token=None):
-    games = list(request_games(username, fmt, n, token))
-    for game in games:
-        print({"id": game.get("id"), "opening": game.get("opening")})
-    return games
-
-
-def main():
-    return inspect_games(SEED_USERS[0], token=cfg.get_lichess_token())
-
-
-if __name__ == "__main__":
-    main()
-
-
-
-
-## avant maxime 
 # inspect_lichess.py
+import os
 import requests
 import json
 
@@ -32,11 +14,12 @@ import json
 username = "yuuki-asuna"
 format_partie = "classical"
 nb_parties = 5
-token = "lip_jwKnD5eHwEVhDubisYt5"  
+token = os.getenv("LICHESS_TOKEN") or os.getenv("jeton_api", "")  
 
 url = f"https://lichess.org/api/games/user/{username}"
 params = {
     "max": nb_parties,
+    "opening": "true",
     "rated": "true",
     "perfType": format_partie,
 }
