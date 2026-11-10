@@ -15,7 +15,7 @@ Ce dépôt repart du dossier **Projet-info-2A-main**. Il conserve ses importeurs
 3. [Analyse_repetition_ouverture.py](Analyse_repetition_ouverture.py) : fonctions commentées pour préparer les transitions, décrire, tester et ajuster.
 4. [Scripts_generation_data/Creation_Df_openings.py](Scripts_generation_data/Creation_Df_openings.py) : ancien référentiel désactivé, puis référentiel officiel et reconnaissance par position.
 
-Le notebook contient **77 cellules**. Les commentaires historiques de résultats sont signalés et repliés : ce sont des textes de l’ancien rapport, pas des conclusions recalculées sur tes nouvelles données. Les sections II–V restent une comparaison Hot Hand ; la partie VI répond à la nouvelle question.
+Le notebook contient **93 cellules**, dont 28 cellules de code exécutées et 16 espaces pour tes commentaires. Les sorties enregistrées correspondent au mode DEMO. Les commentaires historiques de résultats sont signalés et repliés : ce sont des textes de l’ancien rapport, pas des conclusions recalculées sur tes nouvelles données. Les sections II–V restent une comparaison Hot Hand ; la partie VI répond à la nouvelle question.
 
 ## Installation
 

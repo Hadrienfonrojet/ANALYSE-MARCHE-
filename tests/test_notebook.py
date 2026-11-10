@@ -15,7 +15,7 @@ class Notebook(unittest.TestCase):
         root = Path(__file__).resolve().parents[1]
         notebook = nbformat.read(root / "Analyse_data.ipynb", as_version=4)
         nbformat.validate(notebook)
-        self.assertEqual(len(notebook.cells), 77)
+        self.assertEqual(sum(cell.cell_type == "code" for cell in notebook.cells), 28)
         namespace = {"__name__": "__notebook__"}
         saved = cfg.RUN_DIR, cfg.DATA_DIR, cfg.RESULTS_DIR
         try:
