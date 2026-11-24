@@ -37,6 +37,9 @@ OPENINGS_REFERENCE_DIR = (
 OPENING_MAX_FULLMOVES = int(os.getenv("OPENING_MAX_FULLMOVES", "10"))
 OPENING_MIN_FULLMOVES = int(os.getenv("OPENING_MIN_FULLMOVES", "5"))
 RUN_REGRESSIONS = os.getenv("RUN_REGRESSIONS", "true").lower() == "true"
+## "famille" : Sicilian Defense, French Defense… (environ 40 groupes, effectifs suffisants).
+## "variante" : nom complet du référentiel (des centaines de groupes de 1 à 5 parties).
+NIVEAU_OUVERTURE = os.getenv("NIVEAU_OUVERTURE", "famille")
 
 ## Partie 4 — Destination publique de configuration, identifiants privés dans .env
 
@@ -69,6 +72,7 @@ def create_run():
         "formats": FORMATS,
         "random_seed": RANDOM_SEED,
         "run_regressions": RUN_REGRESSIONS,
+        "niveau_ouverture": NIVEAU_OUVERTURE,
         "reference_revision": OPENINGS_REFERENCE_REV,
         "opening_max_fullmoves": OPENING_MAX_FULLMOVES,
         "opening_min_fullmoves": OPENING_MIN_FULLMOVES,

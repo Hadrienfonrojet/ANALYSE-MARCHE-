@@ -1,9 +1,0 @@
-"""Compatibilité : le code commenté se trouve dans import_ouvertures.py."""
-
-import sys
-import import_ouvertures as module
-
-if __name__ == "__main__" and hasattr(module, "main"):
-    module.main()
-else:
-    sys.modules[__name__] = module

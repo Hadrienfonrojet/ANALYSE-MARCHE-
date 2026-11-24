@@ -1,8 +1,3 @@
-"""Trois exercices sur les ouvertures et au maximum trois régressions linéaires.
-
-Exécuter : python analyse.py --demo
-L’orthographe du nom de ce fichier reprend celle demandée pour le projet.
-"""
 
 import argparse
 from pathlib import Path
@@ -100,7 +95,7 @@ def series_resultats(parties):
     )
     same = same.fillna(False) & ~ties & ~ties.shift(1, fill_value=False)
     same &= ~df["_chronology_break_before"] & ~df["_chronology_uncertain"]
-    df["serie_id"] = (~same).cumsum()
+    df["serie_id"] = (~same).to_numpy(dtype=bool).cumsum()
     detail = (
         df.loc[~df["_chronology_uncertain"]]
         .dropna(subset=["opening_name"])
@@ -161,7 +156,6 @@ def regressions_lineaires(parties):
         "elo_diff_100",
         "is_white_next",
         "format_partie_next",
-        "opening_family_next",
         "user_id",
     ]
     ## Former UNE table complète commune aux trois modèles, puis garder ses groupes.
@@ -178,7 +172,12 @@ def regressions_lineaires(parties):
     ]:
         sample[c] = pd.to_numeric(sample[c], errors="coerce").astype(float)
     sample = sample.replace([np.inf, -np.inf], np.nan).dropna()
-    control = "repeat_opening + win + elo_diff_100 + is_white_next + C(format_partie_next) + C(opening_family_next)"
+    ## repeat_opening * win = repeat_opening + win + repeat_opening:win.
+    ## repeat_opening      : effet de répéter après une défaite ou une nulle (win = 0).
+    ## repeat_opening:win  : supplément de l'effet de répéter APRÈS UNE VICTOIRE → la question du projet.
+    ## On ne contrôle pas la famille suivante : si l'on répète, elle est égale à la
+    ## famille courante, et ce contrôle absorberait l'effet étudié.
+    control = "repeat_opening * win + elo_diff_100 + is_white_next + C(format_partie_next)"
     diagnostic, coefficients = [], []
     ## Seule la variable expliquée change : victoire, défaite, puis nulle.
     for outcome, french in [
@@ -258,7 +257,10 @@ def regressions_lineaires(parties):
     ]
     result = pd.DataFrame(coefficients, columns=coefficient_columns)
     result["p_repetition_holm"] = np.nan
-    central = result["variable"].eq("repeat_opening") & result["p_groupee"].notna()
+    central = (
+        result["variable"].isin(["repeat_opening", "repeat_opening:win"])
+        & result["p_groupee"].notna()
+    )
     if central.any():
         from statsmodels.stats.multitest import multipletests
 
@@ -388,8 +390,14 @@ def tracer_resultats(overview, monthly, maxima, output):
 
 def ecrire_manifeste(frame, output, debut, fin):
     """Documenter l’environnement et l’empreinte des données réellement utilisées."""
+    def version(package):
+        try:
+            return importlib.metadata.version(package)
+        except importlib.metadata.PackageNotFoundError:
+            return "absent"
+
     versions = {
-        package: importlib.metadata.version(package)
+        package: version(package)
         for package in [
             "numpy",
             "pandas",
@@ -397,7 +405,7 @@ def ecrire_manifeste(frame, output, debut, fin):
             "statsmodels",
             "matplotlib",
             "pyarrow",
-            "python-chess",
+            "chess",
         ]
     }
     digest = hashlib.sha256(

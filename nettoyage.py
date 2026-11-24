@@ -1,14 +1,10 @@
-"""Préparer les parties sans effacer les sources ni inventer de succession.
-
-Entrée : un DataFrame de parties brutes ou identifiées.
-Sortie : un DataFrame normalisé et un dictionnaire de bilan.
-Les colonnes internes commençant par _chronology protègent les analyses de séries.
-"""
 
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+
+from config import NIVEAU_OUVERTURE
 
 RESULTATS = {
     "win": "Win",
@@ -30,23 +26,26 @@ STATUTS_SANS_RESULTAT = {"created", "started", "aborted", "nostart", "unknownfin
 def convertir_dates(valeurs, millisecondes=False):
     """Accepter les dates ISO et les timestamps en secondes ou millisecondes.
 
-    Toutes les dates retournées utilisent le fuseau UTC. Une valeur illisible
+    Toutes les dates retournées sont en UTC, à la nanoseconde (unité fixée pour
+    que pandas 2 et pandas 3 donnent le même résultat). Une valeur illisible
     devient NaT : on la compte dans le bilan au lieu de lui inventer une date.
     """
     if pd.api.types.is_datetime64_any_dtype(valeurs):
-        return pd.to_datetime(valeurs, errors="coerce", utc=True)
+        return pd.to_datetime(valeurs, errors="coerce", utc=True).dt.as_unit("ns")
 
     nombres = pd.to_numeric(valeurs, errors="coerce")
-    dates = pd.to_datetime(
-        valeurs.where(nombres.isna()), errors="coerce", utc=True, format="mixed"
-    )
     en_ms = nombres.abs().ge(100_000_000_000) | millisecondes
-    for masque, unite in [(en_ms, "ms"), (~en_ms, "s")]:
-        selection = nombres.notna() & masque
-        dates.loc[selection] = pd.to_datetime(
-            nombres.loc[selection], unit=unite, errors="coerce", utc=True
-        )
-    return dates
+    ## Trois conversions séparées, toutes ramenées à la nanoseconde, puis réunies.
+    depuis_ms = pd.to_datetime(nombres.where(en_ms), unit="ms", errors="coerce", utc=True)
+    depuis_s = pd.to_datetime(nombres.where(~en_ms), unit="s", errors="coerce", utc=True)
+    depuis_texte = pd.to_datetime(
+        valeurs.where(nombres.isna()).astype("object"), errors="coerce", utc=True, format="mixed"
+    )
+    return (
+        depuis_ms.dt.as_unit("ns")
+        .fillna(depuis_s.dt.as_unit("ns"))
+        .fillna(depuis_texte.dt.as_unit("ns"))
+    )
 
 
 def normaliser_identifiants(df):
@@ -133,7 +132,19 @@ def creer_variables(df):
         df["opening_name"].str.lower().isin(["", "inconnue", "unknown", "none", "nan"])
     )
     df["opening_name"] = df["opening_name"].mask(inconnue)
-    df["opening_family"] = df["opening_name"].str.split(":").str[0].str.strip()
+
+    ## Famille = nom avant « : » puis avant « , ».
+    ## « Sicilian Defense: Najdorf Variation » et « Sicilian Defense » → « Sicilian Defense ».
+    ## « King's Indian Attack, with e6 » → « King's Indian Attack ».
+    if "opening_variant" not in df:  ## Garder la variante exacte une seule fois.
+        df["opening_variant"] = df["opening_name"]
+    df["opening_family"] = (
+        df["opening_variant"].str.split(":").str[0].str.split(",").str[0].str.strip()
+    ).astype("string")  ## Même type texte que opening_name : comparaisons sûres avec les valeurs manquantes.
+    ## Niveau d'analyse choisi dans config.py : toutes les statistiques, les séries
+    ## et la définition de « répéter son ouverture » utilisent ensuite opening_name.
+    if NIVEAU_OUVERTURE == "famille":
+        df["opening_name"] = df["opening_family"]
 
     for colonne in ["rating", "opponent_rating"]:
         valeurs = df[colonne] if colonne in df else pd.Series(np.nan, index=df.index)
