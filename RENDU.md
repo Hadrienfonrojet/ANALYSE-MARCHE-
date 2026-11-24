@@ -1,36 +1,31 @@
-# Les ouvertures répétées sur Lichess
+# Jeu de la dame · Résultats, temps et séries par ouverture
 
-**Projet Python pour la data science · Hadrien Fonrojet**
+**Problématique** · Comment les taux de victoire, défaite et nulle varient-ils selon l’ouverture et la période ? Quelles séries observe-t-on avec une même ouverture ?
 
-Après une victoire, est-ce qu’un joueur gagne plus souvent sa partie suivante lorsqu’il répète la même ouverture ? Le projet compare les taux de victoire après répétition et changement, puis ajuste la comparaison sur la couleur, la cadence et l’écart Elo.
+Le projet approfondit l’exploration descriptive et la construction des variables. Les trois modèles de probabilité linéaire donnent une lecture ajustée courte. Les résultats présentés dans le dépôt portent sur **3 600 observations fictives et 40 comptes**, construites à graine 73 à partir de préfixes de coups du référentiel officiel.
 
-- [Notebook de rendu avec les résultats enregistrés](notebooks/Rendu_Lichess.ipynb)
-- [Exécuter le notebook dans Colab](https://colab.research.google.com/github/Hadrienfonrojet/ANALYSE-MARCHE-/blob/main/notebooks/Rendu_Lichess.ipynb)
-- [Notebook de travail et repères de lecture](Analyse_data.ipynb)
-- [Configuration et collecte](README.md)
+## Les trois exercices à présenter
 
-## Parcours de lecture
+| Exercice | Question | Résultat à lire |
+|---|---|---|
+| Ouvertures | Quel est le taux de chaque résultat avec cette ouverture ? | Effectifs et proportions, nulles incluses. |
+| Temps | Les taux évoluent-ils dans une période annoncée ? | Sous-échantillon du 15 janvier au 1er mars 2024, fin exclue, et taux mensuels. |
+| Séries | Quelle est la plus longue série de chaque résultat avec la même ouverture ? | Maximum par ouverture, calculé sur les séquences individuelles adjacentes. |
 
-1. **Construire la base.** Simuler des parties puis identifier leurs ouvertures à partir des positions dans les dix premiers coups complets. Contrôler les champs manquants et les doublons.
-2. **Décrire les données.** Comparer les effectifs, les scores et les taux par cadence ou par type de transition.
-3. **Tester l’association.** Lire les effectifs observés et attendus, le χ² et le test exact de Fisher. Compléter par un bootstrap par joueur et une régression logistique ajustée.
-4. **Discuter les limites.** Examiner le choix des ouvertures, la dépendance entre les parties d’un même joueur et la différence entre une partie immédiatement suivante et la prochaine partie de la même couleur.
+Une nulle est un résultat distinct, qui interrompt les séries de victoire et de défaite. Le maximum d’une série dépend du volume et de la continuité des observations.
 
-## Résultats de démonstration
+## Trois modèles complémentaires
 
-La simulation compte **1 200 parties et 40 joueurs fictifs**. Dans le cadre principal, on conserve 544 transitions après victoire. Le taux de victoire suivante est de 45,6 % après répétition (155/340) et 47,5 % après changement (97/204). L’écart est de −2,0 points environ, avec un intervalle bootstrap à 95 % d’environ [−9,3 ; +5,3] points. Le test du χ² donne 0,197 pour 1 degré de liberté, avec une valeur p de 0,657. Le rapport des cotes ajusté de la répétition vaut environ 0,90.
+Une régression explique la victoire suivante, une autre la défaite et une troisième la nulle, avec les mêmes observations et contrôles. Les coefficients sont en points de probabilité. Les erreurs-types sont groupées par joueur et les trois tests centraux de répétition sont corrigés par Holm. Les comptes partagés, la sélection des ouvertures et les trous de collecte limitent une interprétation causale.
 
-Ces valeurs décrivent la simulation. Le mécanisme simulé dépend du classement et de la couleur, et attribue un coefficient nul à la répétition. Une estimation empirique demande une collecte réelle documentée.
+## Documents et accès
 
-## Reproduire
+- [Notebook complet, éditable dans Colab](https://colab.research.google.com/github/Hadrienfonrojet/ANALYSE-MARCHE-/blob/main/Analyse_data.ipynb)
+- [Notebook de rendu avec la même base et les mêmes calculs](notebooks/Rendu_Lichess.ipynb)
+- [Trois exercices et modèles](analyse_statisitques.py)
+- [Commandes reproductibles](README.md)
+- [Sources et nettoyage, trois pages](docs/01_Reproductibilite_et_nettoyage.pdf)
+- [Statistiques descriptives, trois pages](docs/02_Statistiques_descriptives.pdf)
+- [Positionnement et lecture des modèles](docs/03_Positionnement_du_projet.pdf)
 
-Dans Colab, ouvrir le notebook puis choisir **Exécution → Tout exécuter**. En local, depuis la racine du dépôt :
-
-```bash
-python -m pip install -r requirements.txt
-jupyter notebook notebooks/Rendu_Lichess.ipynb
-```
-
-La graine de la simulation vaut 73. Le notebook s’appuie sur les cinq tables d’ouvertures déjà présentes dans `References/`.
-
-[Structure du rendu inspirée du projet sur les Jeux olympiques](https://github.com/oldblindmole/Projet_Python_Data_Science_JO/blob/main/main.ipynb)
+Pour l’oral, sélectionner le tableau des taux, le graphique temporel, les maxima et les coefficients de répétition. Annoncer d’abord le caractère simulé des données et les effectifs.

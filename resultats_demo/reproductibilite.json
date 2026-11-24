@@ -1,0 +1,16 @@
+{
+  "python": "3.12.14",
+  "versions": {
+    "numpy": "2.0.2",
+    "pandas": "2.3.3",
+    "scipy": "1.13.1",
+    "statsmodels": "0.14.6",
+    "matplotlib": "3.9.4",
+    "pyarrow": "21.0.0",
+    "python-chess": "1.999"
+  },
+  "debut_inclus": "2024-01-15",
+  "fin_exclue": "2024-03-01",
+  "empreinte_table_entree_csv": "711137ad39cfb26a4e0607ca8626fa3fe3024d81a2b8bfe4d104f3cd784bf0ea",
+  "note": "Fenêtre = sous-échantillon temporel ; les séries y sont mesurées à partir de la borne de début."
+}

@@ -1,10 +1,27 @@
-# Vérifications de la livraison — 3 novembre 2026
+# Vérifications de la livraison
 
-- 17 tests du complément passent : référentiel officiel 3865 entrées ; classification 5/10 coups ; nulles et dernières parties ; ouvertures inconnues ; historique même couleur distinct ; χ² sur tableau connu ; Fisher ; bootstrap par compte ; régression groupée sur données fictives ; cas de cinq comptes ; fichiers conservés ; requêtes API et S3 simulées ; Master sur base locale sans collecte.
-- 1 test supplémentaire exécute les 28 cellules de code du notebook de 77 cellules, en mode DEMO, avec GET/POST réseau interdits. Il passe.
-- Les fonctions d’Import_des_users.py et Import_une_partie.py ont été comparées par leur syntaxe à celles du dossier Projet-info-2A-main : identiques. Seul le bloc d’exemple entre guillemets est ajouté.
-- config_projet.py et .env.example sont conservés à l’identique de l’état GitHub avant cette livraison.
-- La syntaxe des scripts est vérifiée ; les sorties de notebook sont retirées ; aucun vrai .env n’est livré ; les motifs de tokens et clés reconnus ont été recherchés.
-- L’ancien dépôt est conservé dans ANALYSE-MARCHE-ARCHIVE-2026-11-03. Le commit a73cf1a24963ef49ec33ffe9dbbf781ffcf4a3df, état exact avant modification, est conservé dans son historique. Une correction ultérieure retire le token en clair de la version courante de son script de diagnostic ; le ZIP d’archive retire également ce token. Le token reste dans l’historique Git conservé et doit être révoqué s’il est actif.
+## Environnement de référence
 
-Aucune collecte réelle, lecture de tes données S3 ou écriture réelle sur S3 n’est effectuée pour ces vérifications. Les résultats de démonstration ne constituent pas une analyse empirique de tes parties. Les limites réseau des importeurs conservés sont documentées dans ANALYSE_DU_PROJET.md.
+Python 3.12.14, environnement virtuel isolé créé depuis zéro, installation réussie des dépendances directes puis gel de l’ensemble des versions dans requirements-lock.txt. `python -m pip check` ne trouve aucune dépendance cassée. Le fichier `.python-version` indique Python 3.12.
+
+## Base et sources
+
+Le CSV de démonstration contient 3 600 lignes fictives pour 40 comptes. La commande `python -m Scripts_generation_data.Simulation_reproductible --verify` reconstruit les données à graine 73 et compare les octets du CSV et les empreintes des cinq sources. Elle réussit. Le référentiel figé conserve 3 865 entrées.
+
+## Exécution normale
+
+`python Master_file.py --demo --debut 2024-01-15 --fin 2024-03-01` termine et exporte les trois exercices, les trois modèles linéaires et les graphiques. Le sous-échantillon temporel comporte 1 840 lignes. Les données brutes, identifiées et nettoyées sont conservées dans des fichiers distincts.
+
+Le notebook principal est exécuté entièrement dans un vrai noyau Jupyter avec le Python de l’environnement courant. Les 10 cellules de code terminent et les sorties sont enregistrées. Le notebook de rendu contient les mêmes cellules, réglages et résultats. Toutes les cellules sont éditables et les zones d’interprétation sont des cellules Markdown.
+
+## Tests automatisés
+
+22 tests passent. Ils couvrent les proportions avec nulles, les valeurs manquantes, le bilan de nettoyage, les formats de date, les bornes temporelles, les périodes vides, les séries interrompues par nulles/ouvertures inconnues/changements/dates ex aequo, la distinction des joueurs, le χ² connu, la profondeur d’identification, les trois modèles sur le même échantillon, les erreurs API et reprises après 429, la préservation S3 simulée, les bases sans coups, les exports et les empreintes des fichiers. Les sorties des deux notebooks sont validées.
+
+## Documents
+
+Les trois PDF comportent respectivement 3, 3 et 2 pages. Toutes les pages ont été rendues et contrôlées visuellement. Leurs chiffres viennent de la même exécution de démonstration que les tableaux publiés. Les noms d’ouvertures y sont abrégés pour la lecture et les CSV conservent les variantes complètes.
+
+## Portée de cette vérification
+
+Les résultats livrés sont simulés. La collecte API réelle et les permissions du compte SSP Cloud ne sont pas testées par des appels réels dans cette livraison. Les tests de ces chemins utilisent des réponses et clients simulés. La collecte combine deux tables distinctes du même producteur Lichess. Un véritable rendu empirique demande un échantillon réel documenté.

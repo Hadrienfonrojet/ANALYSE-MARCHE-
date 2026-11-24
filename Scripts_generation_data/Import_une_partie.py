@@ -1,140 +1,140 @@
-# Scripts_generation_data/Import_une_partie.py
-import requests
+"""Exporter séquentiellement les parties Lichess et préserver leur provenance."""
+
 import json
+from pathlib import Path
 import time
 import pandas as pd
-import os
-from concurrent.futures import ThreadPoolExecutor, as_completed
-import random
+import requests
+import config_projet as cfg
 
-# --- CONFIGURATION ---
-# On analyse ces 4 cadences pour les joueurs trouvés
-type_parties = ["bullet", "blitz", "rapid", "classical"]
+DATA_DIR = str(cfg.DATA_DIR)
 
-DATA_DIR = os.path.join(os.path.dirname(__file__), "../Data")
-os.makedirs(DATA_DIR, exist_ok=True)
 
-# --- CHARGEMENT DES OUVERTURES ---
-openings_file = os.path.join(DATA_DIR, "openings.parquet")
-openings_dict = {}
-
-if os.path.exists(openings_file):
-    try:
-        print("📚 Chargement des ouvertures...")
-        df_openings = pd.read_parquet(openings_file)
-        for _, row in df_openings.iterrows():
-            moves_val = row["moves"]
-            if hasattr(moves_val, "tolist"): moves_val = moves_val.tolist()
-            if isinstance(moves_val, (list, tuple)):
-                openings_dict[tuple(moves_val)] = (row["eco"], row["name"])
-    except Exception:
-        print("⚠️ Erreur lecture ouvertures.")
-
-def identify_opening_fast(moves_list):
-    if not moves_list or not openings_dict: return (None, None)
-    limit = min(len(moves_list), 20)
-    for length in range(limit, 0, -1):
-        moves_slice = tuple(moves_list[:length])
-        if moves_slice in openings_dict: return openings_dict[moves_slice]
-    return (None, None)
-
-def extract_games_user(username, format_partie, nb_parties, token, max_retries=3):
-    time.sleep(1.0) # Pause anti-429
+def telecharger_parties(username, token=None, params=None, session=None, max_retries=3):
+    """Une requête à la fois, timeout et attente d’au moins 60 secondes après 429."""
+    http = session or requests
+    headers = {"Accept": "application/x-ndjson"}
+    if token:
+        headers["Authorization"] = "Bearer " + token
     url = f"https://lichess.org/api/games/user/{username}"
-    params = {"max": nb_parties, "rated": "true", "perfType": format_partie, "opening": "true"}
-    headers = {"Accept": "application/x-ndjson", "Authorization": f"Bearer {token}"}
-
-    retries = 0
-    while retries < max_retries:
+    for attempt in range(max_retries):
+        response = http.get(
+            url, params=params or {}, headers=headers, timeout=(15, 180), stream=True
+        )
+        if response.status_code == 429:
+            try:
+                delay = max(60, int(response.headers.get("Retry-After", 60)))
+            finally:
+                response.close()
+            if attempt == max_retries - 1:
+                raise RuntimeError(
+                    f"Limite API après {max_retries} tentatives pour {username}"
+                )
+            time.sleep(delay)
+            continue
         try:
-            r = requests.get(url, params=params, headers=headers)
-            if r.status_code == 200: break
-            elif r.status_code == 429:
-                wait = int(r.headers.get("Retry-After", 3))
-                print(f"⏳ 429 sur {username}. Pause {wait}s...")
-                time.sleep(wait)
-                retries += 1
-            else: return pd.DataFrame()
-        except:
-            time.sleep(5)
-            retries += 1
+            response.raise_for_status()
+            return [json.loads(line) for line in response.iter_lines() if line]
+        finally:
+            response.close()
+    raise RuntimeError("Téléchargement incomplet")
 
-    if not r or r.status_code != 200: return pd.DataFrame()
 
+def extract_games_user(
+    username,
+    format_partie,
+    nb_parties,
+    token=None,
+    max_retries=3,
+    since=None,
+    until=None,
+):
+    """Une ligne par match du joueur, avec coups et adversaire avant identification."""
+    params = {
+        "max": nb_parties,
+        "rated": "true",
+        "perfType": format_partie,
+        "opening": "true",
+        "moves": "true",
+        "finished": "true",
+    }
+    if since is not None:
+        params["since"] = since
+    if until is not None:
+        params["until"] = until
+    games = telecharger_parties(username, token, params, max_retries=max_retries)
+    # Garder la réponse brute avant toute transformation, même pour une collecte vide.
+    directory = Path(DATA_DIR)
+    directory.mkdir(parents=True, exist_ok=True)
+    raw_path = directory / f"api_{username.lower()}_{format_partie}.ndjson"
+    if raw_path.exists():
+        raise FileExistsError(raw_path)
+    raw_path.write_text(
+        "".join(json.dumps(g, ensure_ascii=False) + "\n" for g in games)
+    )
     rows = []
-    for line in r.iter_lines():
-        if not line: continue
-        try:
-            game = json.loads(line)
-            players = game.get("players", {})
-            if "white" not in players or "black" not in players: continue
-            
-            white_id = players["white"].get("user", {}).get("id", "").lower()
-            if white_id == username.lower(): user_color = "white"
-            else: user_color = "black"
-            
-            my_data = players[user_color]
-            winner = game.get("winner")
-            result = "Win" if winner == user_color else ("Draw" if not winner else "Loss")
-            
-            moves = game.get("moves", "").split()
-            eco, name = identify_opening_fast(moves)
-            
-            rows.append({
-                "user_id": username,
+    for game in games:
+        players = game.get("players", {})
+        colors = [
+            c
+            for c in ("white", "black")
+            if players.get(c, {}).get("user", {}).get("id", "").lower()
+            == username.lower()
+        ]
+        if len(colors) != 1:
+            raise ValueError("Le compte demandé est absent d’une partie exportée")
+        color = colors[0]
+        opponent = players.get("black" if color == "white" else "white", {})
+        opening = game.get("opening") or {}
+        winner = game.get("winner")
+        rows.append(
+            {
+                "user_id": username.lower(),
                 "game_id": game.get("id"),
-                "format_partie": format_partie,
                 "timestamp_ms": game.get("createdAt"),
-                "result": result,
-                "eco": eco,
-                "opening_name": name,
-                "rating": my_data.get("rating"),
-                "rating_diff": my_data.get("ratingDiff"),
-                "color": user_color
-            })
-        except: continue
+                "last_move_at": game.get("lastMoveAt"),
+                "status": game.get("status"),
+                "variant": game.get("variant", "standard"),
+                "result": (
+                    "Draw" if winner is None else ("Win" if winner == color else "Loss")
+                ),
+                "color": color,
+                "rating": players[color].get("rating"),
+                "opponent_rating": opponent.get("rating"),
+                "opponent_id": opponent.get("user", {}).get("id"),
+                "format_partie": format_partie,
+                "moves": game.get("moves"),
+                "api_eco": opening.get("eco"),
+                "api_opening_name": opening.get("name"),
+                "opening_name": opening.get("name"),
+                "eco": opening.get("eco"),
+            }
+        )
     return pd.DataFrame(rows)
 
-def import_games_df(nb_parties_extraites, token, max_workers=1):
-    # 1. On charge la liste issue du Random Walk
-    users_file = os.path.join(DATA_DIR, "users_list_global.parquet")
-    if not os.path.exists(users_file):
-        print("❌ users_list_global.parquet introuvable.")
-        return pd.DataFrame()
 
-    df_users = pd.read_parquet(users_file)
-    users_list = df_users["user_id"].unique().tolist()
-    print(f"ℹ️  Téléchargement pour {len(users_list)} joueurs (Random Walk)...")
-
-    all_dfs = []
-
-    # 2. On télécharge les parties (tous formats) pour ces joueurs
-    for format_partie in type_parties:
-        print(f"\n🎮 Format : {format_partie.upper()}")
-        dfs_fmt = []
-        
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            future_to_user = {executor.submit(extract_games_user, user, format_partie, nb_parties_extraites, token): user for user in users_list}
-            
-            count = 0
-            for future in as_completed(future_to_user):
-                res = future.result()
-                if not res.empty: dfs_fmt.append(res)
-                count += 1
-                if count % 10 == 0: print(f"   ... {count}/{len(users_list)}", end="\r")
-
-        if dfs_fmt:
-            df_concat = pd.concat(dfs_fmt, ignore_index=True)
-            output_file = os.path.join(DATA_DIR, f"games_{format_partie}.parquet")
-            df_concat.to_parquet(output_file, index=False)
-            print(f"\n✅ {len(df_concat)} parties sauvegardées.")
-            all_dfs.append(df_concat)
-
-    if all_dfs: return pd.concat(all_dfs, ignore_index=True)
-    return pd.DataFrame()
-
-"""EXEMPLE COMMENTÉ : cinq comptes choisis, sans modifier les fonctions ci-dessus.
-python Master_file.py --users pseudo_1 pseudo_2 pseudo_3 pseudo_4 pseudo_5
-Remplacer ces cinq noms par des comptes existants. La liste sera enregistrée
-dans users_list_global.parquet, que import_games_df lit déjà.
-"""
+def import_games_df(
+    nb_parties_extraites, token=None, max_workers=1, since=None, until=None
+):
+    """Collecter les comptes du fichier de sélection, par cadence, séquentiellement."""
+    if max_workers != 1:
+        raise ValueError("La collecte Lichess utilise une seule requête à la fois")
+    users = (
+        pd.read_parquet(Path(DATA_DIR) / "users_list_global.parquet")["user_id"]
+        .dropna()
+        .unique()
+    )
+    frames = []
+    for cadence in cfg.FORMATS:
+        by_cadence = [
+            extract_games_user(
+                user, cadence, nb_parties_extraites, token, since=since, until=until
+            )
+            for user in users
+        ]
+        nonempty = [f for f in by_cadence if not f.empty]
+        if nonempty:
+            result = pd.concat(nonempty, ignore_index=True)
+            result.to_parquet(Path(DATA_DIR) / f"games_{cadence}.parquet", index=False)
+            frames.append(result)
+    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()

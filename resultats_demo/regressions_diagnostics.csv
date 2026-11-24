@@ -1,0 +1,4 @@
+modele,n_transitions,n_joueurs,status,formule,r2,inferer,predictions_hors_0_1
+victoire,3560,40,estime,win_next ~ repeat_opening + win + elo_diff_100 + is_white_next + C(format_partie_next) + C(opening_family_next),0.03213821785786941,True,0
+defaite,3560,40,estime,loss_next ~ repeat_opening + win + elo_diff_100 + is_white_next + C(format_partie_next) + C(opening_family_next),0.034517540830960924,True,0
+nulle,3560,40,estime,draw_next ~ repeat_opening + win + elo_diff_100 + is_white_next + C(format_partie_next) + C(opening_family_next),0.002075125627159058,True,0

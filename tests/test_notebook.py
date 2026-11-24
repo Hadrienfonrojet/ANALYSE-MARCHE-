@@ -1,33 +1,43 @@
-"""Exécuter toutes les cellules DEMO sans requête réseau ni stockage distant."""
-import ast
-import contextlib
-import io
+"""Vérifier les sorties enregistrées et les conditions de reproductibilité."""
+
 from pathlib import Path
-import tempfile
+import ast
+import hashlib
+import json
 import unittest
-from unittest.mock import patch
 import nbformat
 import config_projet as cfg
 
 
 class Notebook(unittest.TestCase):
-    def test_notebook_demo(self):
-        root = Path(__file__).resolve().parents[1]
-        notebook = nbformat.read(root / "Analyse_data.ipynb", as_version=4)
-        nbformat.validate(notebook)
-        self.assertEqual(sum(cell.cell_type == "code" for cell in notebook.cells), 28)
-        namespace = {"__name__": "__notebook__"}
-        saved = cfg.RUN_DIR, cfg.DATA_DIR, cfg.RESULTS_DIR
-        try:
-            with tempfile.TemporaryDirectory() as folder, patch.object(cfg, "ROOT", Path(folder)), contextlib.redirect_stdout(io.StringIO()):
-                with patch("requests.get", side_effect=AssertionError("Réseau interdit dans DEMO")), patch("requests.post", side_effect=AssertionError("Réseau interdit dans DEMO")):
-                    for i, cell in enumerate(notebook.cells):
-                        if cell.cell_type == "code":
-                            ast.parse(cell.source)
-                            exec(compile(cell.source, f"<cellule {i}>", "exec"), namespace)
-                self.assertTrue(namespace["DEMO"])
-                self.assertEqual(len(namespace["resultats"]["tests"]), 3)
-                self.assertFalse(namespace["UPLOAD_S3"])
-                self.assertTrue((cfg.RESULTS_DIR / "tests_repetition.csv").exists())
-        finally:
-            cfg.RUN_DIR, cfg.DATA_DIR, cfg.RESULTS_DIR = saved
+    def test_saved_notebooks_complete(self):
+        for name in ["Analyse_data.ipynb", "notebooks/Rendu_Lichess.ipynb"]:
+            notebook = nbformat.read(cfg.ROOT / name, as_version=4)
+            nbformat.validate(notebook)
+            code = [cell for cell in notebook.cells if cell.cell_type == "code"]
+            self.assertTrue(code)
+            self.assertEqual(
+                [cell.execution_count for cell in code], list(range(1, len(code) + 1))
+            )
+            self.assertFalse(
+                any(out.output_type == "error" for cell in code for out in cell.outputs)
+            )
+            self.assertTrue(
+                all(cell.metadata.get("editable") for cell in notebook.cells)
+            )
+            for cell in code:
+                ast.parse(cell.source)
+
+    def test_demo_snapshot_hash(self):
+        source = cfg.ROOT / "data_demo/parties_demo.csv"
+        manifest = json.loads(source.with_suffix(".json").read_text())
+        self.assertEqual(
+            hashlib.sha256(source.read_bytes()).hexdigest(), manifest["sha256"]
+        )
+        for name, digest in manifest["reference_sha256"].items():
+            self.assertEqual(
+                hashlib.sha256(
+                    (cfg.OPENINGS_REFERENCE_DIR / name).read_bytes()
+                ).hexdigest(),
+                digest,
+            )

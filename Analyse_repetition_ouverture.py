@@ -1,21 +1,9 @@
-"""Après une victoire, répéter l’ouverture est-il associé à gagner la suivante ?
+"""Fonctions de transition et tests exploratoires par répétition d’ouverture."""
 
-Ce module complète le notebook initial, il ne remplace pas ses analyses Hot Hand.
-Les tests groupés sont exploratoires ; le bootstrap et la régression regroupent
-les observations par compte, sans régler toutes les dépendances entre adversaires.
-"""
-
-from pathlib import Path
-import json
-import warnings
 import numpy as np
 import pandas as pd
 from scipy.stats import chi2_contingency, fisher_exact
-from statsmodels.stats.multitest import multipletests
 from Nettoyage_donnees import clean_games
-
-
-## Partie 1 - Construire les DataFrames de transitions utiles
 
 
 def creer_transitions(frame, meme_couleur=False):
@@ -82,9 +70,6 @@ def preparer_cadres(frame):
     }
 
 
-## Partie 2 - Définir χ² et Fisher exact, avec leurs conditions
-
-
 def tester_table(frame, x="repeat_opening", y="win_next"):
     """Table observée, effectifs attendus et p-values ; association, pas causalité."""
     pair = frame[[x, y]].dropna()
@@ -128,9 +113,6 @@ def tester_table(frame, x="repeat_opening", y="win_next"):
         result.update(odds_ratio_fisher=float(odds), p_fisher=float(fisher_p))
     ## Fisher teste un tableau 2×2 ; il ne corrige PAS la répétition des observations par joueur.
     return result, observed, expected
-
-
-## Partie 3 - Après victoire : appliquer le test, puis quantifier l’écart de taux
 
 
 def taux_apres_victoire(transitions):
@@ -194,216 +176,8 @@ def bootstrap_joueurs(selected, simulations=1000, seed=42):
     return answer
 
 
-## Partie 4 - Une régression multivariable simple, sur les transitions immédiates
+def analyser(frame, output_dir, run_regression=True):
+    """Lancer les trois exercices et les trois modèles linéaires du projet."""
+    from analyse_statisitques import analyser as lancer
 
-
-def regression_ajustee(selected):
-    """Logistique victoire suivante ~ répétition + écart Elo + couleur + cadence.
-
-    L’échantillon est limité aux transitions APRÈS victoire. Les erreurs-types sont
-    regroupées par compte ; pas de p-value naïve si trop peu de comptes. Ce modèle
-    étudie la répétition, pas le classement causal des familles d’ouvertures.
-    """
-    import statsmodels.api as sm
-    import statsmodels.formula.api as smf
-
-    needed = [
-        "win_next",
-        "repeat_opening",
-        "elo_diff_next",
-        "is_white_next",
-        "format_partie_next",
-        "user_id",
-    ]
-    sample = selected[needed].copy()
-    for c in ["win_next", "repeat_opening", "elo_diff_next", "is_white_next"]:
-        sample[c] = pd.to_numeric(sample[c], errors="coerce").astype(float)
-    sample = sample.replace([np.inf, -np.inf], np.nan).dropna()
-    info = {
-        "n": len(sample),
-        "joueurs": sample["user_id"].nunique(),
-        "status": "non_estimable",
-    }
-    coefficients = pd.DataFrame()
-    if len(sample) < 50 or info["joueurs"] < 20 or sample["win_next"].nunique() < 2:
-        info["reason"] = (
-            "Effectifs, comptes ou classes insuffisants ; Elo adverse parfois absent des anciens parquets."
-        )
-        return info, coefficients
-    sample["elo_diff_100"] = sample["elo_diff_next"] / 100
-    model = smf.glm(
-        "win_next ~ repeat_opening + elo_diff_100 + is_white_next + C(format_partie_next)",
-        data=sample,
-        family=sm.families.Binomial(),
-    )
-    if (
-        np.linalg.matrix_rank(model.exog) < model.exog.shape[1]
-        or len(sample) < 10 * model.exog.shape[1]
-    ):
-        info["reason"] = (
-            "Variables constantes/colinéaires ou trop de paramètres pour cet échantillon."
-        )
-        return info, coefficients
-    try:
-        with warnings.catch_warnings():
-            warnings.simplefilter(
-                "error", sm.tools.sm_exceptions.PerfectSeparationWarning
-            )
-            fit = model.fit(cov_type="cluster", cov_kwds={"groups": sample["user_id"]})
-        if not fit.converged or not np.isfinite(fit.bse).all():
-            raise ValueError("Non-convergence ou incertitudes non finies")
-        interval = fit.conf_int()
-        coefficients = pd.DataFrame(
-            {
-                "variable": fit.params.index,
-                "coefficient_logit": fit.params.values,
-                "odds_ratio": np.exp(fit.params.values),
-                "se_groupees": fit.bse.values,
-                "p_groupee": fit.pvalues.values,
-                "ci_coefficient_low": interval[0].values,
-                "ci_coefficient_high": interval[1].values,
-            }
-        )
-        info.update(
-            status="estime_association_ajustee",
-            formula="win_next ~ repeat_opening + elo_diff_100 + is_white_next + C(format_partie_next)",
-        )
-    except (
-        ValueError,
-        np.linalg.LinAlgError,
-        sm.tools.sm_exceptions.PerfectSeparationWarning,
-    ) as error:
-        info["reason"] = str(error)
-    return info, coefficients
-
-
-## Partie 5 - Descriptifs et graphiques lisibles, puis export des résultats
-
-
-def descriptifs(parties):
-    """Moyenne, médiane, écart-type d’échantillon, min/max ; une variable par ligne."""
-    rows = []
-    for name in ["rating", "opponent_rating", "elo_diff", "score"]:
-        if name in parties:
-            col = pd.to_numeric(parties[name], errors="coerce")
-            rows.append(
-                {
-                    "variable": name,
-                    "n": col.count(),
-                    "mean": col.mean(),
-                    "median": col.median(),
-                    "std": col.std(),
-                    "min": col.min(),
-                    "max": col.max(),
-                }
-            )
-    return pd.DataFrame(rows)
-
-
-def analyser(frame, output_dir, run_regression=True, bootstrap_simulations=1000):
-    """Exécuter les trois cadres, sans modifier le DataFrame ni supprimer un fichier."""
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-
-    output = Path(output_dir)
-    output.mkdir(parents=True, exist_ok=True)
-    if any(output.iterdir()):
-        raise FileExistsError(
-            "Choisir un dossier de résultats vide pour conserver les anciens résultats."
-        )
-    parties = clean_games(frame)
-    parties.to_parquet(output / "parties_nettoyees.parquet", index=False)
-    descriptifs(parties).to_csv(output / "statistiques_descriptives.csv", index=False)
-    quality = {
-        "lignes_joueur_partie": len(parties),
-        "parties_uniques": parties["game_id"].nunique(),
-        "joueurs": parties["user_id"].nunique(),
-        "nulles": int(parties["result"].eq("Draw").sum()),
-        "source": "successives observees ; continuite de collecte non garantie",
-    }
-    (output / "qualite.json").write_text(
-        json.dumps(quality, ensure_ascii=False, indent=2)
-    )
-    cadres = preparer_cadres(parties)
-    tests, bootstrap, rates = [], [], {}
-    for name, transitions in cadres.items():
-        selected, summary = taux_apres_victoire(transitions)
-        rates[name] = summary
-        summary.to_csv(output / f"taux_{name}.csv")
-        transitions.to_parquet(output / f"transitions_{name}.parquet", index=False)
-        result, observed, expected = tester_table(selected)
-        result.update(
-            cadre=name, question="apres_victoire_repetition_et_victoire_suivante"
-        )
-        tests.append(result)
-        observed.to_csv(output / f"observe_{name}.csv")
-        expected.to_csv(output / f"attendu_{name}.csv")
-        bootstrap.append(
-            {"cadre": name, **bootstrap_joueurs(selected, bootstrap_simulations)}
-        )
-        if not summary.empty:
-            ax = (
-                summary["taux_victoire"]
-                .rename(index={0.0: "Changer", 1.0: "Répéter"})
-                .plot.bar(ylim=(0, 1), rot=0)
-            )
-            ax.set(title=f"Après victoire — {name}", ylabel="Taux de victoire suivante")
-            plt.tight_layout()
-            plt.savefig(output / f"taux_{name}.png")
-            plt.close()
-    tests = pd.DataFrame(tests)
-    for p in ["p_chi2", "p_fisher"]:
-        valid = tests[p].notna()
-        tests[p + "_holm"] = np.nan
-        if valid.any():
-            tests.loc[valid, p + "_holm"] = multipletests(
-                tests.loc[valid, p], method="holm"
-            )[1]
-    tests.to_csv(output / "tests_repetition.csv", index=False)
-    pd.DataFrame(bootstrap).to_csv(output / "bootstrap_joueurs.csv", index=False)
-    chosen, _ = taux_apres_victoire(cadres["immediat"])
-    info, coefficients = (
-        regression_ajustee(chosen)
-        if run_regression
-        else ({"status": "desactivee"}, pd.DataFrame())
-    )
-    (output / "regression_diagnostic.json").write_text(
-        json.dumps(info, ensure_ascii=False, indent=2)
-    )
-    coefficients.to_csv(output / "regression_coefficients.csv", index=False)
-    parties.groupby(["color", "opening_name"], dropna=False).agg(
-        n=("score", "size"),
-        score_mean=("score", "mean"),
-        score_std=("score", "std"),
-        win_rate=("win", "mean"),
-    ).to_csv(output / "descriptifs_ouvertures_couleur.csv")
-    if (
-        "rating" in parties
-        and pd.to_numeric(parties["rating"], errors="coerce").notna().any()
-    ):
-        pd.to_numeric(parties["rating"], errors="coerce").hist(bins=20)
-        plt.xlabel("Classement du joueur")
-        plt.ylabel("Nombre de parties")
-        plt.tight_layout()
-        plt.savefig(output / "histogramme_rating.png")
-        plt.close()
-    parties["result"].value_counts().reindex(
-        ["Win", "Draw", "Loss"], fill_value=0
-    ).plot.bar(rot=0)
-    plt.ylabel("Nombre de parties")
-    plt.tight_layout()
-    plt.savefig(output / "resultats.png")
-    plt.close()
-    (output / "LECTURE_RESULTATS.md").write_text(
-        "# Lire les résultats\n\nLes tests répondent à : après victoire, répéter est-il associé à gagner la suivante ?\nLes tableaux indiquent les effectifs et taux ; les χ²/Fisher restent exploratoires car les comptes contribuent plusieurs matchs. Holm corrige les trois cadres, séparément pour χ² et Fisher.\nLe bootstrap rééchantillonne les comptes ; la logistique ajuste sur Elo relatif, couleur et cadence de la suivante. Le diagnostic explique les modèles non estimables.\nProchaine même couleur n’est pas nécessairement la partie suivante immédiate. Les trous de collecte, les adversaires partagés et le choix de stratégie limitent toute conclusion causale.\n"
-    )
-    return {
-        "tests": tests,
-        "taux": rates,
-        "bootstrap": pd.DataFrame(bootstrap),
-        "regression": info,
-        "coefficients": coefficients,
-        "cadres": cadres,
-    }
+    return lancer(frame, output_dir, run_regression=run_regression)
