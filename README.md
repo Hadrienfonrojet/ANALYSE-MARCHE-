@@ -1,21 +1,21 @@
-# Ouvertures et victoires successives — projet original complété
+# Jeu de la dame · Ouvertures et victoires successives
 
-> Après une victoire, gagner la partie suivante est-il plus fréquent lorsqu’on répète l’ouverture plutôt que lorsqu’on en change ?
+Après une victoire, gagner la partie suivante est-il plus fréquent lorsque le joueur répète son ouverture ? Le projet décrit les parties, construit les transitions entre matchs et compare les taux de victoire selon la répétition, la couleur, la cadence et le classement.
 
-Ce dépôt repart du dossier **Projet-info-2A-main**. Il conserve ses importeurs et son notebook détaillé, puis ajoute une partie VI sur les ouvertures. Les anciens blocs remplacés sont entourés de lignes `##` et entièrement commentés : ils restent lisibles, sans s’exécuter une deuxième fois.
+[![Ouvrir le notebook dans Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Hadrienfonrojet/ANALYSE-MARCHE-/blob/main/Analyse_data.ipynb)
 
-[Ouvrir le notebook dans Colab](https://colab.research.google.com/github/Hadrienfonrojet/ANALYSE-MARCHE-/blob/main/Analyse_data.ipynb)
+## Modifier ton notebook
 
-[L’ancien projet GitHub et son historique sont conservés dans un dépôt distinct](https://github.com/Hadrienfonrojet/ANALYSE-MARCHE-ARCHIVE-2026-11-03). L’archive est privée : il faut être connecté avec le compte autorisé. Une branche `archive/projet-avant-retour-original-2026-11-03` conserve aussi cet état.
+Ouvre le lien Colab ci-dessus et choisis **Fichier → Enregistrer une copie dans Drive**. Tu peux ensuite modifier le texte et le code, ajouter tes commentaires et conserver ta version personnelle. Pour mettre ta version à jour dans ce dépôt, utilise **Fichier → Enregistrer une copie dans GitHub** avec ton compte autorisé.
 
-## Lire et comprendre
+Double-clique sur une cellule de texte pour la rédiger. Clique dans une cellule de code pour la modifier. Le menu **Exécution → Tout exécuter** lance les cellules dans l’ordre.
 
-1. [ANALYSE_DU_PROJET.md](ANALYSE_DU_PROJET.md) : ce qui change, les questions, les limites et le rôle des fichiers.
-2. [Analyse_data.ipynb](Analyse_data.ipynb) : sections I–V initiales conservées, puis partie VI sur la répétition d’ouverture.
-3. [Analyse_repetition_ouverture.py](Analyse_repetition_ouverture.py) : fonctions commentées pour préparer les transitions, décrire, tester et ajuster.
-4. [Scripts_generation_data/Creation_Df_openings.py](Scripts_generation_data/Creation_Df_openings.py) : ancien référentiel désactivé, puis référentiel officiel et reconnaissance par position.
+## Lire le projet
 
-Le notebook contient **93 cellules**, dont 28 cellules de code exécutées et 16 espaces pour tes commentaires. Les sorties enregistrées correspondent au mode DEMO. Les commentaires historiques de résultats sont signalés et repliés : ce sont des textes de l’ancien rapport, pas des conclusions recalculées sur tes nouvelles données. Les sections II–V restent une comparaison Hot Hand ; la partie VI répond à la nouvelle question.
+- [Analyse_data.ipynb](Analyse_data.ipynb) présente les questions, les objectifs, les données, les descriptifs et les analyses statistiques. Les 28 cellules de code sont exécutées sur les données de démonstration. Les espaces de commentaire permettent d’écrire tes interprétations.
+- [Analyse_repetition_ouverture.py](Analyse_repetition_ouverture.py) regroupe la construction des transitions et les analyses.
+- [Creation_Df_openings.py](Scripts_generation_data/Creation_Df_openings.py) construit le référentiel officiel et identifie les ouvertures par position.
+- [RENDU.md](RENDU.md) présente le notebook de rendu et sa simulation dédiée.
 
 ## Installation
 
