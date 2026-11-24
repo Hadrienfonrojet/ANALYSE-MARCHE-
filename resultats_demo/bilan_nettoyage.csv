@@ -1,2 +1,2 @@
-lignes_brutes,lignes_invalides_rejetees,identifiants_manquants_rejetes,doublons_retires,lignes_nettoyees,parties_uniques,joueurs,ouvertures_manquantes,elo_adverse_manquant,dates_ex_aequo
-3600,0,0,0,3600,3600,40,0,0,0
+lignes_brutes,lignes_invalides_rejetees,identifiants_manquants_rejetes,doublons_retires,lignes_nettoyees,parties_uniques,joueurs,ouvertures_manquantes,elo_adverse_manquant,dates_ex_aequo,ruptures_historique,joueurs_chronologie_incertaine
+3600,0,0,0,3600,3600,40,0,0,0,0,0

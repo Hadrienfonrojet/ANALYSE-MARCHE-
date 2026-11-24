@@ -3,7 +3,10 @@
 import numpy as np
 import pandas as pd
 from scipy.stats import chi2_contingency, fisher_exact
-from Nettoyage_donnees import clean_games
+from nettoyage import clean_games
+
+
+## Partie 1 — Construire les DataFrames de parties successives
 
 
 def creer_transitions(frame, meme_couleur=False):
@@ -24,7 +27,14 @@ def creer_transitions(frame, meme_couleur=False):
     groups = df.groupby(keys, sort=False)
     for name in [
         "game_id",
+        "date",
         "timestamp",
+        "loss",
+        "draw",
+        "opening_family",
+        "is_white",
+        "_chronology_segment",
+        "_date_ambiguous",
         "result",
         "win",
         "opening_name",
@@ -53,7 +63,14 @@ def creer_transitions(frame, meme_couleur=False):
         opening.eq(following).where(df["known_pair"]).astype("Float64")
     )
     ## Le filtrage est fait APRÈS shift : ne pas sauter une nulle ou une ouverture inconnue.
-    transitions = df[df["game_id_next"].notna() & df["delay_minutes"].gt(0)].copy()
+    # Comparer seulement des parties dont l’ordre est connu et sans rejet entre elles.
+    valide = df["game_id_next"].notna() & df["delay_minutes"].gt(0)
+    valide &= df["_chronology_segment"].eq(df["_chronology_segment_next"])
+    valide &= ~df["_date_ambiguous"] & ~df["_date_ambiguous_next"].eq(True)
+    valide &= ~df["_chronology_uncertain"]
+    if meme_couleur:
+        valide &= df["color"].notna()
+    transitions = df.loc[valide].copy()
     transitions["history"] = (
         "prochaine_meme_couleur" if meme_couleur else "immediat_observe"
     )
@@ -68,6 +85,9 @@ def preparer_cadres(frame):
         "immediat_meme_couleur": immediate[immediate["same_color"]].copy(),
         "prochaine_meme_couleur": creer_transitions(frame, meme_couleur=True),
     }
+
+
+## Partie 2 — Définir une seule fonction pour le χ² et Fisher
 
 
 def tester_table(frame, x="repeat_opening", y="win_next"):
@@ -89,6 +109,11 @@ def tester_table(frame, x="repeat_opening", y="win_next"):
     expected = pd.DataFrame(index=observed.index, columns=observed.columns, dtype=float)
     if min(observed.shape, default=0) < 2:
         return result, observed, expected
+    ## H0 : la répétition et le résultat suivant sont indépendants.
+    ## Attendu d’une case = total de sa ligne × total de sa colonne / total général.
+    ## χ² = somme de (observé − attendu)² / attendu ; ddl = (lignes − 1) × (colonnes − 1).
+    ## Ici le défaut est un tableau 2×2 : victoire suivante contre défaite OU nulle.
+    ## Les comptes contribuent plusieurs fois : les p-values restent exploratoires.
     stat, pvalue, ddl, exp = chi2_contingency(observed, correction=False)
     expected.loc[:, :] = exp
     result.update(
@@ -115,6 +140,9 @@ def tester_table(frame, x="repeat_opening", y="win_next"):
     return result, observed, expected
 
 
+## Partie 3 — Appliquer la comparaison après une victoire
+
+
 def taux_apres_victoire(transitions):
     """Le DataFrame sélectionné contient les transitions après une victoire connue."""
     selected = transitions[
@@ -127,6 +155,9 @@ def taux_apres_victoire(transitions):
         taux_victoire=("win_next", "mean"),
     )
     return selected, summary
+
+
+## Partie 4 — Complément : rééchantillonner des joueurs entiers
 
 
 def bootstrap_joueurs(selected, simulations=1000, seed=42):
@@ -178,6 +209,6 @@ def bootstrap_joueurs(selected, simulations=1000, seed=42):
 
 def analyser(frame, output_dir, run_regression=True):
     """Lancer les trois exercices et les trois modèles linéaires du projet."""
-    from analyse_statisitques import analyser as lancer
+    from analyse import analyser as lancer
 
     return lancer(frame, output_dir, run_regression=run_regression)

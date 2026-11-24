@@ -5,16 +5,16 @@ import hashlib
 import json
 from pathlib import Path
 import pandas as pd
-import config_projet as cfg
-from Scripts_generation_data.Creation_Df_openings import creer_openings, identify_games
-from Nettoyage_donnees import sauvegarder_nettoyage
+import config as cfg
+from import_ouvertures import creer_openings, identify_games
+from nettoyage import sauvegarder_nettoyage
 from Stockage_SSPCloud import upload_folder_to_s3
-from analyse_statisitques import analyser
+from analyse import analyser
 
 
 def preparer_utilisateurs(users=None, token=None, discover=False):
     """Enregistrer la liste directe ou découvrir un réseau d’adversaires explicitement."""
-    from Scripts_generation_data import Import_des_users as module
+    import import_utilisateurs as module
 
     module.DATA_DIR = str(cfg.DATA_DIR)
     if discover:
@@ -80,7 +80,7 @@ def main(argv=None):
     cfg.create_run()
     reference = creer_openings()
     if args.collect:
-        from Scripts_generation_data import Import_une_partie as module
+        import import_parties as module
 
         token = cfg.get_lichess_token()
         selected = preparer_utilisateurs(args.users, token, args.discover)

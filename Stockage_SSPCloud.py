@@ -3,7 +3,7 @@
 import os
 from pathlib import Path
 import boto3
-import config_projet as cfg
+import config as cfg
 
 
 ## Partie 1 - Le client lit les identifiants dans l’environnement privé

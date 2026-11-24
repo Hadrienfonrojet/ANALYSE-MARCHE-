@@ -1,27 +1,25 @@
-# Vérifications de la livraison
+# Vérifications du projet
 
-## Environnement de référence
+Version du 24 novembre 2026. Le dépôt conserve les calculs de sa démonstration, avec un découpage plus lisible et des protections supplémentaires pour les historiques réels.
 
-Python 3.12.14, environnement virtuel isolé créé depuis zéro, installation réussie des dépendances directes puis gel de l’ensemble des versions dans requirements-lock.txt. `python -m pip check` ne trouve aucune dépendance cassée. Le fichier `.python-version` indique Python 3.12.
+## Exécution complète
 
-## Base et sources
+- Python 3.12.14, dépendances fixées dans `requirements-lock.txt`.
+- Notebook principal : 45 cellules, dont 19 cellules de code exécutées dans l’ordre, sans sortie d’erreur.
+- `notebooks/Rendu_Lichess.ipynb` est une copie identique du notebook exécuté.
+- 33 tests automatisés réussis : `python -m unittest discover -s tests -v`.
+- Les fonctions d’import sont testées avec réponses simulées et erreurs contrôlées. Aucune nouvelle collecte réelle ni écriture S3 n’est nécessaire à ces vérifications.
 
-Le CSV de démonstration contient 3 600 lignes fictives pour 40 comptes. La commande `python -m Scripts_generation_data.Simulation_reproductible --verify` reconstruit les données à graine 73 et compare les octets du CSV et les empreintes des cinq sources. Elle réussit. Le référentiel figé conserve 3 865 entrées.
+## Conservation des résultats
 
-## Exécution normale
+Les tableaux des ouvertures, des périodes, des maxima, des tests et des trois modèles ont été comparés à la version GitHub précédente. Les huit CSV communs, hors bilan enrichi, sont identiques à une tolérance numérique de 10^-12. Les modèles conservent 3 560 transitions et 40 comptes. Le bilan gagne des compteurs de ruptures et de chronologies incertaines.
 
-`python Master_file.py --demo --debut 2024-01-15 --fin 2024-03-01` termine et exporte les trois exercices, les trois modèles linéaires et les graphiques. Le sous-échantillon temporel comporte 1 840 lignes. Les données brutes, identifiées et nettoyées sont conservées dans des fichiers distincts.
+La simulation fournie reste inchangée : 3 600 lignes, 40 comptes, graine 73 et effet générateur propre de répétition nul. Ses empreintes et celles des cinq sources officielles restent vérifiées.
 
-Le notebook principal est exécuté entièrement dans un vrai noyau Jupyter avec le Python de l’environnement courant. Les 10 cellules de code terminent et les sorties sont enregistrées. Le notebook de rendu contient les mêmes cellules, réglages et résultats. Toutes les cellules sont éditables et les zones d’interprétation sont des cellules Markdown.
+## Cas limites couverts
 
-## Tests automatisés
+Les tests contrôlent : taux avec nulles, fenêtres UTC semi-ouvertes, séries interrompues par une nulle ou un changement d’ouverture, ouvertures inconnues, dates ex aequo, ruptures après un rejet, comptes avec date inconnue, nettoyage répété sans perte des ruptures, conservation des timeout avec résultat exploitable, groupes de test absents, alignement des observations de régression avec Elo manquant, erreurs API, pause après HTTP 429, cache après échec, changement de paramètres et modification du contenu brut. La conservation locale et l’absence de suppression S3 sont contrôlées avec un client simulé.
 
-22 tests passent. Ils couvrent les proportions avec nulles, les valeurs manquantes, le bilan de nettoyage, les formats de date, les bornes temporelles, les périodes vides, les séries interrompues par nulles/ouvertures inconnues/changements/dates ex aequo, la distinction des joueurs, le χ² connu, la profondeur d’identification, les trois modèles sur le même échantillon, les erreurs API et reprises après 429, la préservation S3 simulée, les bases sans coups, les exports et les empreintes des fichiers. Les sorties des deux notebooks sont validées.
+## Limites
 
-## Documents
-
-Les trois PDF comportent respectivement 3, 3 et 2 pages. Toutes les pages ont été rendues et contrôlées visuellement. Leurs chiffres viennent de la même exécution de démonstration que les tableaux publiés. Les noms d’ouvertures y sont abrégés pour la lecture et les CSV conservent les variantes complètes.
-
-## Portée de cette vérification
-
-Les résultats livrés sont simulés. La collecte API réelle et les permissions du compte SSP Cloud ne sont pas testées par des appels réels dans cette livraison. Les tests de ces chemins utilisent des réponses et clients simulés. La collecte combine deux tables distinctes du même producteur Lichess. Un véritable rendu empirique demande un échantillon réel documenté.
+Les tests ne prouvent pas la représentativité des comptes ni la complétude des historiques. Les valeurs p du χ² et de Fisher restent exploratoires avec plusieurs transitions par joueur. Le groupement des erreurs-types et le bootstrap par compte ne règlent pas toutes les dépendances entre adversaires. Les résultats de démonstration ne constituent pas des conclusions empiriques sur Lichess.

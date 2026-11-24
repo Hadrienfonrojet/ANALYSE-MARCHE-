@@ -198,7 +198,7 @@ class Complement(unittest.TestCase):
         success.iter_lines.return_value = [b'{"id":"g1"}']
         http = Mock()
         http.get.side_effect = [limited, success]
-        with patch("Scripts_generation_data.Import_une_partie.time.sleep") as sleep:
+        with patch("import_parties.time.sleep") as sleep:
             rows = telecharger_parties("alice", session=http)
         sleep.assert_called_once_with(60)
         self.assertEqual(rows[0]["id"], "g1")

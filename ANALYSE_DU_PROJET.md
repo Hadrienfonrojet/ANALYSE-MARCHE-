@@ -1,3 +1,5 @@
+> Les noms des fichiers ont été simplifiés. Lire `GUIDE_DES_FICHIERS.md` pour retrouver chaque fonction dans son module principal. Les anciens noms restent des passerelles.
+
 # Méthode, fonctions et choix statistiques
 
 ## Question et dimension approfondie
@@ -8,7 +10,7 @@ L’étude porte sur les résultats associés aux ouvertures. Le parcours princi
 
 `preparer_utilisateurs()` enregistre les comptes choisis. `get_recent_opponents()` lit les adversaires via l’API et `discover_users_random_walk()` explore ce réseau lorsque l’option est demandée. La graine rend les tirages reproductibles sur une liste d’adversaires donnée, mais cette liste peut évoluer sur Lichess.
 
-`telecharger_parties()` effectue une requête séquentielle avec timeout et reprise après HTTP 429. `extract_games_user()` conserve la réponse NDJSON avant de transformer les données. `import_games_df()` assemble les comptes et cadences. Les coups et les informations de l’adversaire sont gardés dès cette collecte.
+`telecharger_parties()` effectue une requête séquentielle avec timeout et reprise après HTTP 429. `extract_games_user()` conserve la réponse NDJSON avant de transformer les données. `lire_ou_telecharger()` vérifie les paramètres et l’empreinte du contenu avant toute reprise ; un échec ne crée aucun marqueur de réussite. `import_games_df()` assemble les comptes et cadences. Les coups et les informations de l’adversaire sont gardés dès cette collecte.
 
 `creer_openings()` lit les cinq TSV officiels figés et reconstruit leurs positions. `position_key()` compare pièces, trait, roques et prise en passant légale. `build_position_index()` organise les positions pour la recherche. `identify_opening()` rejoue les coups dans la fenêtre de 5 ou 10 coups complets. `identify_games()` applique la reconnaissance et conserve les étiquettes API séparément.
 
@@ -18,7 +20,7 @@ Le nom complet d’une ouverture inclut sa variante. Un code ECO peut couvrir pl
 
 `preparer_parties()` renvoie la table propre et un dictionnaire de bilan. Il normalise noms de colonnes, comptes, dates UTC, résultats, couleurs, cadences et types numériques. Les dates ISO, les datetimes et les timestamps sont acceptés. Les timestamps numériques nommés timestamp_ms sont interprétés en millisecondes ; pour timestamp, les valeurs absolues au moins égales à 10^11 sont interprétées en millisecondes, les autres en secondes.
 
-Les dates, comptes ou résultats invalides sont rejetés avec un compteur. Les statuts de parties en cours ou annulées sont exclus. Les doublons sont définis par (user_id, game_id). Si game_id manque entièrement, un identifiant de secours compte-date est construit et documenté. Des dates identiques restent ambiguës pour les séries.
+Les dates, comptes ou résultats invalides sont rejetés avec un compteur. Les statuts de parties en cours ou annulées sont exclus. Les doublons sont définis par (user_id, game_id). Si game_id manque entièrement, un identifiant de secours compte-date est construit et documenté. Des dates identiques restent ambiguës pour les séries et les transitions. Un rejet daté crée une rupture et ne raccorde jamais les parties restantes. Un rejet non datable d’un compte connu exclut ce compte des séries et transitions, tout en conservant ses lignes valides dans les descriptifs. Les statuts timeout avec un résultat exploitable restent dans la base.
 
 Les ouvertures inconnues restent manquantes. Les Elo non numériques ou négatifs deviennent manquants. Le modèle utilise les observations complètes et publie le nombre retenu. Le programme ne substitue pas à l’Elo adverse la variation de classement après match.
 

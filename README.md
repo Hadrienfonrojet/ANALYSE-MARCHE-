@@ -6,6 +6,29 @@
 
 L’approfondissement du projet porte sur les statistiques descriptives et la construction rigoureuse des variables. Trois exercices étudient les résultats par ouverture, une nouvelle base dans une fenêtre temporelle et les séries maximales de chaque résultat. Trois régressions linéaires de probabilité complètent cette exploration, pour la victoire, la défaite et la nulle à la suivante.
 
+## Où lire le code
+
+Commencer par `Analyse_data.ipynb`, puis ouvrir le fichier de la fonction étudiée.
+Les fonctions ont un objectif précis, des espaces entre les étapes et des commentaires `##`.
+
+| Fichier principal | Rôle |
+|---|---|
+| `config.py` | Paramètres publics, lecture du `.env` privé et dossiers de collectes uniques. |
+| `import_utilisateurs.py` | Lire les adversaires via l’API et explorer leur réseau si demandé. |
+| `import_parties.py` | Télécharger les parties, conserver le brut et vérifier toute reprise. |
+| `import_ouvertures.py` | Réunir les cinq TSV et identifier les positions après 5 à 10 coups. |
+| `nettoyage.py` | Normaliser, auditer et protéger les ruptures d’historique. |
+| `analyse.py` | Trois exercices descriptifs, trois régressions et exports. |
+| `Analyse_repetition_ouverture.py` | Construire les transitions ; χ², Fisher et bootstrap par joueur. |
+| `donnees_demo.py` | Reconstruire la simulation figée sans effet propre de répétition. |
+| `Master_file.py` | Enchaîner collecte ou lecture, identification, nettoyage et analyse. |
+| `Stockage_SSPCloud.py` | Copier une collecte sur S3 sans suppression locale ou distante. |
+| `executer_notebook.py` | Exécuter toutes les cellules et enregistrer les sorties. |
+
+Les anciens noms de modules restent des passerelles vers ces fichiers : ils ne contiennent pas une deuxième version des calculs. Les anciennes commandes restent utilisables. Les deux notebooks sont deux copies identiques du même parcours ; le notebook principal est `Analyse_data.ipynb`.
+
+Le guide de lecture détaillé est disponible dans [GUIDE_DES_FICHIERS.md](GUIDE_DES_FICHIERS.md) et [le document PDF](docs/04_Guide_du_code_et_des_analyses.pdf). Les trois autres PDF emploient parfois les noms des passerelles historiques ; les fonctions correspondantes restent disponibles.
+
 ## Ce que tu peux reproduire
 
 La démonstration utilise **3 600 lignes fictives pour 40 comptes**, du 1er janvier au 30 mars 2024. Les préfixes de coups sont légaux et proviennent du référentiel officiel. Les résultats sont simulés, avec un coefficient générateur nul de répétition. La graine vaut 73.
@@ -20,7 +43,7 @@ Depuis la racine du dépôt, avec Python 3.12 installé :
 python3.12 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements-lock.txt
-python -m Scripts_generation_data.Simulation_reproductible --verify
+python donnees_demo.py --verify
 python Master_file.py --demo --debut 2024-01-15 --fin 2024-03-01
 python executer_notebook.py
 python -m unittest discover -s tests -v
@@ -31,13 +54,13 @@ Sous Windows, l’activation s’effectue avec `.venv\Scripts\activate`. Le scri
 Pour lancer uniquement les trois exercices sur la démonstration :
 
 ```bash
-python analyse_statisitques.py --demo --debut 2024-01-15 --fin 2024-03-01
+python analyse.py --demo --debut 2024-01-15 --fin 2024-03-01
 ```
 
 Pour reconstruire une nouvelle copie du CSV fictif :
 
 ```bash
-python -m Scripts_generation_data.Simulation_reproductible --output /tmp/parties_demo.csv
+python donnees_demo.py --output /tmp/parties_demo.csv
 ```
 
 Cette commande refuse d’écraser une copie existante. La vérification avec `--verify` reconstruit les données en mémoire et compare leurs octets et les empreintes des sources.
@@ -65,7 +88,7 @@ python Master_file.py --collect --users compte1 compte2 compte3 compte4 compte5 
 
 Remplacer les exemples par les comptes choisis. Sans `--users`, les comptes sont lus dans `LICHESS_SEEDS`. `--discover` active explicitement une exploration d’adversaires avec une graine fixée. `GAMES_PER_FORMAT` est un plafond **par compte et par cadence**. Un plafond peut créer des trous dans la chronologie. Pour une couverture complète de la fenêtre, vérifier le plafond et comparer les volumes collectés.
 
-La collecte est séquentielle. Elle emploie un timeout, enregistre les réponses brutes NDJSON et attend au moins 60 secondes après un HTTP 429. Une erreur est propagée et les fichiers déjà écrits restent disponibles. Les listes et les historiques Lichess peuvent évoluer. Pour reproduire une estimation, réutiliser les fichiers conservés et leurs empreintes, plutôt que lancer une nouvelle requête réseau.
+La collecte est séquentielle. Elle emploie un timeout, enregistre les réponses brutes NDJSON et attend au moins 60 secondes après un HTTP 429. Une erreur est propagée et les fichiers déjà écrits restent disponibles. Une réponse complète possède un manifeste avec les paramètres et une empreinte SHA-256. Dans le même dossier, une reprise vérifie ces deux éléments. Un échec réseau n’est jamais enregistré comme une collecte vide réussie. Une nouvelle période ou un nouveau plafond demande un nouveau dossier de collecte. Le Master crée toujours un dossier neuf ; la reprise locale est disponible avec les fonctions d’import sur un dossier existant. Les listes et les historiques Lichess peuvent évoluer. Pour reproduire une estimation, réutiliser les fichiers conservés et leurs empreintes, plutôt que lancer une nouvelle requête réseau.
 
 ## Réanalyser un fichier et conserver les résultats
 
@@ -79,11 +102,11 @@ Chaque lancement crée `Collectes/<identifiant>/Data` et `Collectes/<identifiant
 
 `--upload` copie la nouvelle collecte vers `s3://hadrien2703/diffusion/projet_ouvertures/<identifiant>/`. Aucun objet existant n’est supprimé. Une réservation conditionnelle empêche une réutilisation du même identifiant. Les fichiers cachés et le `.env` sont exclus.
 
-## Les trois exercices dans `analyse_statisitques.py`
+## Les trois exercices dans `analyse.py`
 
 1. **Toute la base**. Effectifs, joueurs, taux de victoire/défaite/nulle, score moyen, écart-type et taux moyen par joueur pour chaque ouverture. Une nulle vaut 0 dans chacun des indicateurs victoire et défaite, 1 dans l’indicateur nulle et 0,5 dans le score.
 2. **Fenêtre temporelle**. Copie `[début, fin[` en UTC, export `nouveau_jeu_intervalle.parquet`, statistiques mensuelles et étude d’une ouverture. Il s’agit d’un sous-échantillon, pas d’une collecte indépendante.
-3. **Séries**. Longueurs et maxima par joueur, ouverture et résultat dans la chronologie complète observée. Un changement de résultat ou d’ouverture interrompt une série. Les nulles interrompent victoires et défaites et possèdent leurs propres séries. Les dates ex aequo constituent une rupture. Les séries dans une fenêtre sont tronquées à ses bornes.
+3. **Séries**. Longueurs et maxima par joueur, ouverture et résultat dans la chronologie complète observée. Un changement de résultat ou d’ouverture interrompt une série. Les nulles interrompent victoires et défaites et possèdent leurs propres séries. Les dates ex aequo constituent une rupture. Un rejet daté interdit de raccorder ses deux voisines ; un compte contenant une ligne non datable est conservé pour la description mais exclu des séries et transitions. Les séries dans une fenêtre sont tronquées à ses bornes.
 
 ## Lire les modèles et les tests
 
