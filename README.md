@@ -1,95 +1,54 @@
-# Jeu de la dame · Statistiques des ouvertures
+# Le rôle des ouvertures aux échecs, inspiré du *Jeu de la dame*
 
-**Comment les taux de victoire, de défaite et de nulle varient-ils selon l’ouverture, le temps et les séries observées ?**
+[![Ouvrir dans Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Hadrienfonrojet/ANALYSE-MARCHE-/blob/main/QueensGambit.ipynb)
 
-[![Ouvrir dans Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Hadrienfonrojet/ANALYSE-MARCHE-/blob/main/Analyse_data.ipynb)
+**Question de départ :** répéter une ouverture dépend-il de l’issue de la partie précédente ?
 
-L’approfondissement du projet porte sur les statistiques descriptives et la construction rigoureuse des variables. Trois exercices étudient les résultats par ouverture, une nouvelle base dans une fenêtre temporelle et les séries maximales de chaque résultat. Trois régressions linéaires de probabilité complètent cette exploration, pour la victoire, la défaite et la nulle à la suivante.
+**Problématique :** comment les taux de victoire, de défaite et de nulle varient-ils selon l’ouverture, la couleur, la période et la répétition d’une même stratégie ?
 
-## Où lire le code
+Tout le projet se lit dans **`QueensGambit.ipynb`** : collecte, nettoyage, statistiques descriptives, tests (χ², Fisher, bootstrap par joueur, correction de Holm) et régressions (modèles linéaires de probabilité avec effet fixe joueur, logit).
 
-- [Analyse_data.ipynb](Analyse_data.ipynb) présente les résultats par ouverture, les fenêtres temporelles, les séries et les tests sur les transitions après victoire.
-- [Gambit.ipynb](Gambit.ipynb) approfondit la répétition par famille d’ouverture, la couleur, les sessions de jeu et les revanches.
+## Données
 
-| Fichier principal | Rôle |
+- **13 727 parties classées** de **30 comptes Lichess**, du 25 novembre 2025 au 24 novembre 2026.
+- Les comptes sont découverts par marche aléatoire à partir de trois graines (`macaquezizi`, `T34USSR`, `lucascrotti`), avec au plus 300 parties par compte et par cadence.
+- La base brute est publiée dans `donnees/parties_1an.parquet` : le notebook la relit sans réinterroger Lichess.
+- L’ouverture est identifiée à partir des coups et analysée au niveau de la **famille** (Sicilienne, Française…).
+
+## Résultat principal
+
+On répète sa famille d’ouverture dans 11,7 % des enchaînements après une victoire et dans 11,9 % après une nulle ou une défaite (χ², p = 0,65). Répéter ne change pas non plus les chances de gagner la partie suivante. Les résultats dépendent surtout de l’écart d’Elo et, plus faiblement, de la couleur.
+
+## Fichiers
+
+| Fichier | Rôle |
 |---|---|
-| `config.py` | Paramètres publics, lecture du `.env` privé et dossiers de collectes uniques. |
-| `import_utilisateurs.py` | Lire les adversaires via l’API et explorer leur réseau si demandé. |
-| `import_parties.py` | Télécharger les parties, conserver le brut et vérifier toute reprise. |
-| `import_ouvertures.py` | Réunir les cinq TSV et identifier les positions après 5 à 10 coups. |
-| `nettoyage.py` | Normaliser, auditer et protéger les ruptures d’historique. |
-| `analyse.py` | Trois exercices descriptifs, trois régressions et exports. |
-| `Analyse_repetition_ouverture.py` | Construire les transitions ; χ², Fisher et bootstrap par joueur. |
-| `Master_file.py` | Enchaîner collecte ou lecture, identification, nettoyage et analyse. |
-| `Stockage_SSPCloud.py` | Copier une collecte sur S3 sans suppression locale ou distante. |
+| `QueensGambit.ipynb` | Le notebook d’analyse complet, avec ses sorties |
+| `config.py` | Paramètres publics et lecture du fichier privé `.env` |
+| `import_utilisateurs.py` | Découverte des comptes (marche aléatoire entre adversaires) |
+| `import_parties.py` | Téléchargement des parties via l’API Lichess (NDJSON) |
+| `import_ouvertures.py` | Référentiel officiel des ouvertures et identification par les coups |
+| `nettoyage.py` | Nettoyage, contrôle des résultats et des ruptures d’historique |
+| `analyse.py` | Statistiques par ouverture, fenêtre de temps, séries, régressions |
+| `Analyse_repetition_ouverture.py` | Enchaînements de parties, χ², Fisher, bootstrap par joueur |
+| `Master_file.py` | Enchaîne collecte, identification, nettoyage et analyse |
+| `Stockage_SSPCloud.py` | Copie de la collecte sur le stockage S3 du SSP Cloud |
 
 ## Reproduire l’analyse
 
-Les notebooks utilisent le fichier [`donnees/parties_test.parquet`](donnees/parties_test.parquet), issu d’une collecte Lichess. Les sorties enregistrées se lisent directement sur GitHub.
-
-Depuis la racine du dépôt, avec Python 3.12 installé :
-
 ```bash
-python3.12 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements.txt
-python Master_file.py --raw-file donnees/parties_test.parquet --debut 2026-10-01 --fin 2026-11-01
+pip install -r requirements.txt
+jupyter nbconvert --to notebook --execute --inplace QueensGambit.ipynb
 ```
 
-Sous Windows, l’activation s’effectue avec `.venv\Scripts\activate`. Pour exécuter les cellules du notebook, ouvre-le dans Colab avec le lien en haut de sa page.
-
-## Sources de données
-
-| Table | Source | Récupération et rôle |
-|---|---|---|
-| Parties réelles | API Lichess | Export NDJSON des comptes sélectionnés, avec résultats, dates, couleurs, cadences, classements, adversaires et coups. |
-| Ouvertures | Dépôt officiel `lichess-org/chess-openings` | Cinq TSV officiels figés, `a.tsv` à `e.tsv`, version `712a58be746c143f4ab935b68acc50f4bac813eb`. Ils donnent noms, ECO et positions à reconstruire. |
-
-Les parties et le référentiel sont deux jeux de données distincts du même producteur Lichess. Le référentiel officiel est diffusé sous CC0.
-
-[Référentiel officiel](https://github.com/lichess-org/chess-openings) · [API officielle](https://lichess.org/api) · [Consignes API](https://lichess.org/page/api-tips)
-
-## Collecter des parties réelles
-
-Créer un `.env` privé depuis `.env.example` et définir les paramètres souhaités. Le jeton Lichess est facultatif selon l’accès. Les identifiants AWS restent privés.
+Pour refaire une collecte, créer un fichier `.env` (jamais publié) avec son jeton Lichess, puis :
 
 ```bash
-python Master_file.py --collect --users compte1 compte2 compte3 compte4 compte5 \
-  --since 2024-01-01 --until 2024-04-01 --debut 2024-01-15 --fin 2024-03-01
+# .env : LICHESS_TOKEN=...  LICHESS_SEEDS=macaquezizi,T34USSR,lucascrotti
+#        USERS_PER_SEED=10   GAMES_PER_FORMAT=300
+python Master_file.py --collect --discover --since 2025-11-25 --until 2026-11-25 --debut 2026-05-01 --fin 2026-11-01 --upload
 ```
 
-Remplacer les exemples par les comptes choisis. Sans `--users`, les comptes sont lus dans `LICHESS_SEEDS`. `--discover` active explicitement une exploration d’adversaires avec une graine fixée. `GAMES_PER_FORMAT` est un plafond **par compte et par cadence**. Un plafond peut créer des trous dans la chronologie. Pour une couverture complète de la fenêtre, vérifier le plafond et comparer les volumes collectés.
+## Limites
 
-La collecte est séquentielle. Elle emploie un timeout, enregistre les réponses brutes NDJSON et attend au moins 60 secondes après un HTTP 429. Une erreur est propagée et les fichiers déjà écrits restent disponibles. Une réponse complète possède un manifeste avec les paramètres et une empreinte SHA-256. Dans le même dossier, une reprise vérifie ces deux éléments. Un échec réseau n’est jamais enregistré comme une collecte vide réussie. Une nouvelle période ou un nouveau plafond demande un nouveau dossier de collecte. Le Master crée toujours un dossier neuf ; la reprise locale est disponible avec les fonctions d’import sur un dossier existant. Les listes et les historiques Lichess peuvent évoluer. Pour reproduire une estimation, réutiliser les fichiers conservés et leurs empreintes, plutôt que lancer une nouvelle requête réseau.
-
-## Réanalyser un fichier et conserver les résultats
-
-```bash
-python Master_file.py --raw-file chemin/vers/parties.parquet --debut 2024-01-15 --fin 2024-03-01
-```
-
-Le fichier peut être CSV ou Parquet. Les champs indispensables sont `user_id`, `result`, `opening_name` ou les `moves` permettant de l’obtenir, et une date ISO ou un timestamp. Les champs `rating`, `opponent_rating`, `color` et `format_partie` sont nécessaires aux modèles ajustés. Une étiquette fournie sans coups est conservée avec un statut de profondeur non vérifiée.
-
-Chaque lancement crée `Collectes/<identifiant>/Data` et `Collectes/<identifiant>/Resultats`. Le brut, la base identifiée, le nettoyage, le sous-échantillon temporel, les tableaux et figures sont conservés. Le manifeste indique la source, la version Python, les bibliothèques, les bornes et l’empreinte d’entrée.
-
-`--upload` copie la nouvelle collecte vers `s3://hadrien2703/diffusion/projet_ouvertures/<identifiant>/`. Aucun objet existant n’est supprimé. Une réservation conditionnelle empêche une réutilisation du même identifiant. Les fichiers cachés et le `.env` sont exclus.
-
-## Les trois exercices dans `analyse.py`
-
-1. **Toute la base**. Effectifs, joueurs, taux de victoire/défaite/nulle, score moyen, écart-type et taux moyen par joueur pour chaque ouverture. Une nulle vaut 0 dans chacun des indicateurs victoire et défaite, 1 dans l’indicateur nulle et 0,5 dans le score.
-2. **Fenêtre temporelle**. Copie `[début, fin[` en UTC, export `nouveau_jeu_intervalle.parquet`, statistiques mensuelles et étude d’une ouverture. Il s’agit d’un sous-échantillon, pas d’une collecte indépendante.
-3. **Séries**. Longueurs et maxima par joueur, ouverture et résultat dans la chronologie complète observée. Un changement de résultat ou d’ouverture interrompt une série. Les nulles interrompent victoires et défaites et possèdent leurs propres séries. Les dates ex aequo constituent une rupture. Un rejet daté interdit de raccorder ses deux voisines ; un compte contenant une ligne non datable est conservé pour la description mais exclu des séries et transitions. Les séries dans une fenêtre sont tronquées à ses bornes.
-
-## Lire les modèles et les tests
-
-Les trois modèles OLS expliquent les indicateurs du résultat suivant avec répétition, victoire courante, écart Elo pour 100 points, couleur, cadence de la partie suivante. Ils utilisent le même échantillon complet et des erreurs-types groupées par compte. Un coefficient de 0,02 représente **2 points de probabilité**. Les modèles peuvent produire des prédictions hors [0, 1], comptées dans le diagnostic.
-
-Les trois cibles somment à 1. Les équations sont complémentaires et leurs coefficients de répétition ne constituent pas trois preuves indépendantes. Les valeurs p disponibles pour les termes de répétition et leur interaction sont corrigées par Holm. Les modèles trop petits, constants ou colinéaires sont signalés. Avec moins de 20 comptes, les coefficients restent affichés si estimables mais les incertitudes groupées sont masquées.
-
-Le χ² et Fisher sont des comparaisons exploratoires sur les transitions après victoire. Holm corrige les trois cadres annoncés. Le regroupement par joueur ne règle pas toutes les dépendances entre adversaires. Le choix d’ouverture, l’incomplétude des historiques et la taille des groupes limitent une interprétation causale.
-
-## Modifier les notebooks
-
-Dans Colab, **Fichier → Enregistrer une copie dans Drive** crée une version personnelle éditable. Double-cliquer sur le texte permet de modifier les cellules Markdown. **Exécution → Tout exécuter** lance les calculs. Après une installation de dépendances, redémarrer la session si Colab le demande. Pour publier la copie, utiliser **Fichier → Enregistrer une copie dans GitHub**.
-
-Les variables `SOURCE`, `LOCAL_FILE`, `S3_RUN_ID`, `DEBUT`, `FIN` et `OUVERTURE` sont regroupées au début. Avec `SOURCE="s3"`, le notebook lit le Parquet de la collecte indiquée via boto3. Les cellules de texte contiennent les questions, les choix méthodologiques et des espaces d’interprétation.
+L’échantillon est propre aux 30 comptes suivis et à leurs adversaires ; le plafond de 300 parties tronque l’historique des comptes les plus actifs ; les résultats sont des associations, car chaque joueur choisit lui-même son ouverture et sa cadence.
