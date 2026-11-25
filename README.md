@@ -8,8 +8,8 @@ L’approfondissement du projet porte sur les statistiques descriptives et la co
 
 ## Où lire le code
 
-Commencer par `Analyse_data.ipynb`, puis ouvrir le fichier de la fonction étudiée.
-Les fonctions ont un objectif précis, des espaces entre les étapes et des commentaires `##`.
+- [Analyse_data.ipynb](Analyse_data.ipynb) présente les résultats par ouverture, les fenêtres temporelles, les séries et les tests sur les transitions après victoire.
+- [Gambit.ipynb](Gambit.ipynb) approfondit la répétition par famille d’ouverture, la couleur, les sessions de jeu et les revanches.
 
 | Fichier principal | Rôle |
 |---|---|
@@ -20,50 +20,23 @@ Les fonctions ont un objectif précis, des espaces entre les étapes et des comm
 | `nettoyage.py` | Normaliser, auditer et protéger les ruptures d’historique. |
 | `analyse.py` | Trois exercices descriptifs, trois régressions et exports. |
 | `Analyse_repetition_ouverture.py` | Construire les transitions ; χ², Fisher et bootstrap par joueur. |
-| `donnees_demo.py` | Reconstruire la simulation figée sans effet propre de répétition. |
 | `Master_file.py` | Enchaîner collecte ou lecture, identification, nettoyage et analyse. |
 | `Stockage_SSPCloud.py` | Copier une collecte sur S3 sans suppression locale ou distante. |
-| `executer_notebook.py` | Exécuter toutes les cellules et enregistrer les sorties. |
 
-Les anciens noms de modules restent des passerelles vers ces fichiers : ils ne contiennent pas une deuxième version des calculs. Les anciennes commandes restent utilisables. Les deux notebooks sont deux copies identiques du même parcours ; le notebook principal est `Analyse_data.ipynb`.
+## Reproduire l’analyse
 
-Le guide de lecture détaillé est disponible dans [GUIDE_DES_FICHIERS.md](GUIDE_DES_FICHIERS.md) et [le document PDF](docs/04_Guide_du_code_et_des_analyses.pdf). Les trois autres PDF emploient parfois les noms des passerelles historiques ; les fonctions correspondantes restent disponibles.
-
-## Ce que tu peux reproduire
-
-La démonstration utilise **3 600 lignes fictives pour 40 comptes**, du 1er janvier au 30 mars 2024. Les préfixes de coups sont légaux et proviennent du référentiel officiel. Les résultats sont simulés, avec un coefficient générateur nul de répétition. La graine vaut 73.
-
-Les deux notebooks utilisent cette même base figée. Les sorties enregistrées sont disponibles dès l’ouverture. Les empreintes du CSV et des cinq tables officielles sont dans `data_demo/parties_demo.json`. Les versions directes sont fixées dans `requirements.txt` et toutes les versions de l’environnement validé sont dans `requirements-lock.txt`. L’environnement de référence est Python **3.12**, testé avec Python 3.12.14 sur macOS.
-
-## Installation et commandes centrales
+Les notebooks utilisent le fichier [`donnees/parties_test.parquet`](donnees/parties_test.parquet), issu d’une collecte Lichess. Les sorties enregistrées se lisent directement sur GitHub.
 
 Depuis la racine du dépôt, avec Python 3.12 installé :
 
 ```bash
 python3.12 -m venv .venv
 source .venv/bin/activate
-python -m pip install -r requirements-lock.txt
-python donnees_demo.py --verify
-python Master_file.py --demo --debut 2024-01-15 --fin 2024-03-01
-python executer_notebook.py
-python -m unittest discover -s tests -v
+python -m pip install -r requirements.txt
+python Master_file.py --raw-file donnees/parties_test.parquet --debut 2026-10-01 --fin 2026-11-01
 ```
 
-Sous Windows, l’activation s’effectue avec `.venv\Scripts\activate`. Le script `executer_notebook.py` utilise le Python courant pour son noyau Jupyter et enregistre les sorties dans le notebook. Pour l’ouvrir et modifier les cellules, le bouton Colab ci-dessus donne accès à l’éditeur.
-
-Pour lancer uniquement les trois exercices sur la démonstration :
-
-```bash
-python analyse.py --demo --debut 2024-01-15 --fin 2024-03-01
-```
-
-Pour reconstruire une nouvelle copie du CSV fictif :
-
-```bash
-python donnees_demo.py --output /tmp/parties_demo.csv
-```
-
-Cette commande refuse d’écraser une copie existante. La vérification avec `--verify` reconstruit les données en mémoire et compare leurs octets et les empreintes des sources.
+Sous Windows, l’activation s’effectue avec `.venv\Scripts\activate`. Pour exécuter les cellules du notebook, ouvre-le dans Colab avec le lien en haut de sa page.
 
 ## Sources de données
 
@@ -71,9 +44,8 @@ Cette commande refuse d’écraser une copie existante. La vérification avec `-
 |---|---|---|
 | Parties réelles | API Lichess | Export NDJSON des comptes sélectionnés, avec résultats, dates, couleurs, cadences, classements, adversaires et coups. |
 | Ouvertures | Dépôt officiel `lichess-org/chess-openings` | Cinq TSV officiels figés, `a.tsv` à `e.tsv`, version `712a58be746c143f4ab935b68acc50f4bac813eb`. Ils donnent noms, ECO et positions à reconstruire. |
-| Démonstration fournie | Simulation du projet | Base reproductible pour vérifier toute la chaîne sans accès réseau après installation. |
 
-Les parties et le référentiel sont deux jeux de données distincts du même producteur Lichess. La simulation sert à la reproductibilité de la démonstration. Le rendu empirique demanderait une collecte réelle. Le référentiel officiel est diffusé sous CC0.
+Les parties et le référentiel sont deux jeux de données distincts du même producteur Lichess. Le référentiel officiel est diffusé sous CC0.
 
 [Référentiel officiel](https://github.com/lichess-org/chess-openings) · [API officielle](https://lichess.org/api) · [Consignes API](https://lichess.org/page/api-tips)
 
@@ -110,9 +82,9 @@ Chaque lancement crée `Collectes/<identifiant>/Data` et `Collectes/<identifiant
 
 ## Lire les modèles et les tests
 
-Les trois modèles OLS expliquent les indicateurs du résultat suivant avec répétition, victoire courante, écart Elo pour 100 points, couleur, cadence et famille d’ouverture de la suivante. Ils utilisent le même échantillon complet et des erreurs-types groupées par compte. Un coefficient de 0,02 représente **2 points de probabilité**. Les modèles peuvent produire des prédictions hors [0, 1], comptées dans le diagnostic.
+Les trois modèles OLS expliquent les indicateurs du résultat suivant avec répétition, victoire courante, écart Elo pour 100 points, couleur, cadence de la partie suivante. Ils utilisent le même échantillon complet et des erreurs-types groupées par compte. Un coefficient de 0,02 représente **2 points de probabilité**. Les modèles peuvent produire des prédictions hors [0, 1], comptées dans le diagnostic.
 
-Les trois cibles somment à 1. Les équations sont complémentaires et leurs coefficients de répétition ne constituent pas trois preuves indépendantes. Les trois tests centraux de répétition sont corrigés par Holm. Les modèles trop petits, constants ou colinéaires sont signalés. Avec moins de 20 comptes, les coefficients restent affichés si estimables mais les incertitudes groupées sont masquées.
+Les trois cibles somment à 1. Les équations sont complémentaires et leurs coefficients de répétition ne constituent pas trois preuves indépendantes. Les valeurs p disponibles pour les termes de répétition et leur interaction sont corrigées par Holm. Les modèles trop petits, constants ou colinéaires sont signalés. Avec moins de 20 comptes, les coefficients restent affichés si estimables mais les incertitudes groupées sont masquées.
 
 Le χ² et Fisher sont des comparaisons exploratoires sur les transitions après victoire. Holm corrige les trois cadres annoncés. Le regroupement par joueur ne règle pas toutes les dépendances entre adversaires. Le choix d’ouverture, l’incomplétude des historiques et la taille des groupes limitent une interprétation causale.
 
@@ -121,13 +93,3 @@ Le χ² et Fisher sont des comparaisons exploratoires sur les transitions après
 Dans Colab, **Fichier → Enregistrer une copie dans Drive** crée une version personnelle éditable. Double-cliquer sur le texte permet de modifier les cellules Markdown. **Exécution → Tout exécuter** lance les calculs. Après une installation de dépendances, redémarrer la session si Colab le demande. Pour publier la copie, utiliser **Fichier → Enregistrer une copie dans GitHub**.
 
 Les variables `SOURCE`, `LOCAL_FILE`, `S3_RUN_ID`, `DEBUT`, `FIN` et `OUVERTURE` sont regroupées au début. Avec `SOURCE="s3"`, le notebook lit le Parquet de la collecte indiquée via boto3. Les cellules de texte contiennent les questions, les choix méthodologiques et des espaces d’interprétation.
-
-## Pour le rendu écrit et oral
-
-L’approfondissement porte sur l’exploration descriptive. Sélectionner un tableau des taux, un graphique temporel, une table des séries maximales et les trois coefficients centraux. Les résultats de démonstration sont dans `resultats_demo/` et les trois guides sont dans `docs/`.
-
-- [Notebook principal](Analyse_data.ipynb)
-- [Notebook de rendu](notebooks/Rendu_Lichess.ipynb)
-- [Résumé de l’étude](RENDU.md)
-- [Méthode et fonctions](ANALYSE_DU_PROJET.md)
-- [Vérifications](VERIFICATIONS.md)
