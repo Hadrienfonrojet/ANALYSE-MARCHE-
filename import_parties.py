@@ -1,7 +1,5 @@
 """Importer les parties par l’API Lichess et conserver la réponse brute.
 
-Aucun fichier local n’est supprimé. Une reprise utilise seulement une réponse
-complète dont les paramètres et l’empreinte correspondent à la demande actuelle.
 """
 
 import hashlib
