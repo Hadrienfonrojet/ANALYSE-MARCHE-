@@ -6,7 +6,7 @@
 
 **Problématique :** comment les taux de victoire, de défaite et de nulle varient-ils selon l’ouverture, la couleur, la période et la répétition d’une même stratégie ?
 
-Tout le projet se lit dans **`QueensGambit.ipynb`** : collecte, nettoyage, statistiques descriptives, tests (χ², Fisher, bootstrap par joueur, correction de Holm) et régressions (modèles linéaires de probabilité avec effet fixe joueur, logit).
+Tout le projet se lit dans **`QueensGambit.ipynb`** : collecte, nettoyage, statistiques descriptives, tests du χ² avec correction de Holm et régressions (modèles linéaires de probabilité avec effet fixe joueur, logit).
 
 ## Données
 
@@ -77,7 +77,7 @@ Pour une nouvelle collecte, le Master appelle la découverte des comptes, puis l
   * **Où intervenir** — `--since` et `--until` dans la commande de collecte
   * **Qui utilise le réglage** — `Master_file.main()` convertit les dates UTC en millisecondes pour l’API. La borne de fin est exclue.
 
-* **La période de l’exercice temporel**
+* **La période du sous-échantillon exporté**
   * **Où intervenir** — `DEBUT` et `FIN` en tête du notebook ou `--debut` et `--fin` en ligne de commande
   * **Qui utilise le réglage** — `analyse.filtrer_periode()` sélectionne les parties déjà disponibles, début inclus et fin exclue en UTC.
 
@@ -226,9 +226,6 @@ Pour une nouvelle collecte, le Master appelle la découverte des comptes, puis l
 * **`taux_apres_victoire(transitions)`**  
   Garde les transitions après victoire avec ouverture renseignée des deux côtés, puis compare les taux lorsqu’on répète ou change. Utilisée avant les tests sur la victoire suivante.
 
-* **`bootstrap_joueurs(selected, simulations=1000, seed=42)`**  
-  Rééchantillonne les joueurs pour estimer l’incertitude de l’écart de taux. `simulations` règle le nombre de tirages et `seed` leur reproductibilité. Utilisée dans le notebook.
-
 #### Lancement de l’analyse
 
 * **`analyser(frame, output_dir, run_regression=True)`**  
@@ -245,7 +242,7 @@ Pour une nouvelle collecte, le Master appelle la découverte des comptes, puis l
   Extrait la fenêtre UTC demandée, début inclus et fin exclue. Appelée par `statistiques_temporelles()`.
 
 * **`statistiques_temporelles(parties, debut, fin)`**  
-  Renvoie les observations de la fenêtre et leurs taux mensuels par ouverture. Utilisée dans l’exercice temporel.
+  Renvoie les observations de la fenêtre et leurs taux mensuels pour les exports.
 
 * **`series_resultats(parties)`**  
   Calcule les suites consécutives de victoires, défaites ou nulles avec la même ouverture, puis leurs maxima. Utilisée sur l’ensemble des observations et sur la fenêtre.
@@ -271,7 +268,7 @@ Pour une nouvelle collecte, le Master appelle la découverte des comptes, puis l
 #### Graphiques et traçabilité
 
 * **`tracer_resultats(overview, monthly, maxima, output)`**  
-  Trace les résultats par ouverture, l’évolution mensuelle et les maxima des séries dans `output`. Reçoit les tables déjà calculées.
+  Trace les résultats par ouverture et les maxima des séries dans `output`. Le graphique mensuel est généré uniquement si une table mensuelle non vide est fournie.
 
 * **`ecrire_manifeste(frame, output, debut, fin)`**  
   Enregistre les dates, les versions et l’empreinte des données dans le dossier de résultats. Appelée en fin d’exécution.

@@ -2,7 +2,7 @@
 
 import numpy as np
 import pandas as pd
-from scipy.stats import chi2_contingency, fisher_exact
+from scipy.stats import chi2_contingency
 from nettoyage import clean_games
 
 
@@ -87,7 +87,7 @@ def preparer_cadres(frame):
     }
 
 
-## Partie 2 — Définir une seule fonction pour le χ² et Fisher
+## Partie 2 — Définir le test du χ²
 
 
 def tester_table(frame, x="repeat_opening", y="win_next"):
@@ -102,8 +102,6 @@ def tester_table(frame, x="repeat_opening", y="win_next"):
         "cramer_v": np.nan,
         "min_expected": np.nan,
         "expected_ge5": False,
-        "odds_ratio_fisher": np.nan,
-        "p_fisher": np.nan,
         "status": "non_estimable",
     }
     expected = pd.DataFrame(index=observed.index, columns=observed.columns, dtype=float)
@@ -133,10 +131,6 @@ def tester_table(frame, x="repeat_opening", y="win_next"):
         expected_ge5=bool((exp >= 5).all()),
         status="exploratoire_dependance_joueurs",
     )
-    if observed.shape == (2, 2):
-        odds, fisher_p = fisher_exact(observed.to_numpy(), alternative="two-sided")
-        result.update(odds_ratio_fisher=float(odds), p_fisher=float(fisher_p))
-    ## Fisher teste un tableau 2×2 ; il ne corrige PAS la répétition des observations par joueur.
     return result, observed, expected
 
 
@@ -158,53 +152,6 @@ def taux_apres_victoire(transitions):
 
 
 ## Partie 4 — Complément : rééchantillonner des joueurs entiers
-
-
-def bootstrap_joueurs(selected, simulations=1000, seed=42):
-    """IC percentile de l’écart répéter − changer, par rééchantillonnage des comptes.
-
-    Tous les enchaînements d’un compte sont rééchantillonnés ensemble. Ce complément
-    traite une partie de la dépendance ; les adversaires partagés et la sélection
-    des ouvertures restent des limites. Ce n’est pas un test de causalité.
-    """
-    counts = selected.groupby(["user_id", "repeat_opening"])["win_next"].agg(
-        ["sum", "count"]
-    )
-    users = selected["user_id"].unique()
-    answer = {
-        "joueurs": len(users),
-        "difference": np.nan,
-        "ci_low": np.nan,
-        "ci_high": np.nan,
-        "simulations_valides": 0,
-    }
-    if len(users) == 0:
-        return answer
-    stats = []
-    for value in [0, 1]:
-        sub = selected[selected["repeat_opening"].eq(value)]
-        stats.append(sub["win_next"].mean())
-    answer["difference"] = stats[1] - stats[0]
-    if len(users) < 20 or not np.isfinite(answer["difference"]):
-        return answer  ## Vingt comptes est un garde-fou pédagogique, pas une garantie.
-    arrays = []
-    for value in [0, 1]:
-        part = counts.xs(value, level="repeat_opening").reindex(users, fill_value=0)
-        arrays.append(part[["sum", "count"]].to_numpy(dtype=float))
-    rng = np.random.default_rng(seed)
-    differences = []
-    for _ in range(simulations):
-        sample = rng.integers(0, len(users), len(users))
-        a, b = (arr[sample].sum(axis=0) for arr in arrays)
-        if a[1] and b[1]:
-            differences.append(b[0] / b[1] - a[0] / a[1])
-    if differences:
-        answer.update(
-            ci_low=float(np.quantile(differences, 0.025)),
-            ci_high=float(np.quantile(differences, 0.975)),
-            simulations_valides=len(differences),
-        )
-    return answer
 
 
 def analyser(frame, output_dir, run_regression=True):

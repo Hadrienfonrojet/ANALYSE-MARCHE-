@@ -318,13 +318,12 @@ def tests_repetition(parties, output):
         observed.to_csv(output / f"chi2_observe_{name}.csv")
         expected.to_csv(output / f"chi2_attendu_{name}.csv")
     tests = pd.DataFrame(tests)
-    for p in ["p_chi2", "p_fisher"]:
-        valid = tests[p].notna()
-        tests[p + "_holm"] = np.nan
-        if valid.any():
-            tests.loc[valid, p + "_holm"] = multipletests(
-                tests.loc[valid, p], method="holm"
-            )[1]
+    valid = tests["p_chi2"].notna()
+    tests["p_chi2_holm"] = np.nan
+    if valid.any():
+        tests.loc[valid, "p_chi2_holm"] = multipletests(
+            tests.loc[valid, "p_chi2"], method="holm"
+        )[1]
     tests.to_csv(output / "tests_repetition.csv", index=False)
     return tests, rates
 
