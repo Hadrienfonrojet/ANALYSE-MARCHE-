@@ -35,9 +35,7 @@ def position_key(board):
 def download_sources(source_dir=None):
     """Récupérer a.tsv à e.tsv depuis une révision officielle figée.
 
-    Une version figée rend les classifications reproductibles. Pour utiliser une
-    autre version, changer OPENINGS_REFERENCE_REV dans config.py.
-    Les fichiers déjà présents dans ce dossier de version ne sont pas retéléchargés.
+    Une version figée rend les classifications reproductibles.
     """
     directory = (
         Path(source_dir) if source_dir is not None else cfg.OPENINGS_REFERENCE_DIR
@@ -71,10 +69,7 @@ def download_sources(source_dir=None):
 
 def read_reference(source_dir):
     """Garder toutes les ouvertures, y compris celles absentes de la collecte.
-
     Une ligne de référence décrit une position atteinte après une suite PGN.
-    Le nom d'une variante n'est pas attribué à ses préfixes : il faut atteindre
-    sa position finale pour pouvoir la reconnaître dans une partie.
     """
     frames = []
     for letter in "abcde":
@@ -126,10 +121,7 @@ def read_reference(source_dir):
 
 def build_position_index(reference, max_fullmoves=10):
     """Indexer les positions dont la variante est atteinte dans la limite choisie.
-
     Un coup complet = un coup blanc et un coup noir = deux demi-coups (plies).
-    Les variantes nécessitant plus de coups que la limite restent dans la grande
-    table, mais elles ne peuvent pas être attribuées à une partie avant leur terme.
     """
     if max_fullmoves < 1:
         raise ValueError("La limite de coups doit être positive.")
@@ -158,13 +150,11 @@ def identify_opening(moves, index, max_fullmoves=10, min_fullmoves=5):
 
     On exige au moins min_fullmoves coups complets effectivement disponibles.
     Une référence courte reste possible : par exemple une famille reconnue après
-    deux coups. La profondeur exacte est retournée pour ne pas prétendre que sa
-    variante a été reconnue après dix coups lorsqu'elle ne l'a pas été.
-
+    deux coups. 
     Les transpositions sont reconnues lorsqu'une même position complète est
-    atteinte. Si plusieurs noms décrivent cette position, tous les candidats sont
-    conservés ; le choix affiché est déterministe (profondeur, puis ECO et nom).
+    atteinte. On conserve les séries les plus longues. 
     """
+    
     if min_fullmoves < 1 or max_fullmoves < min_fullmoves:
         raise ValueError("Choisir 1 <= minimum de coups <= maximum de coups.")
 
@@ -245,16 +235,12 @@ def identify_opening(moves, index, max_fullmoves=10, min_fullmoves=5):
 
     return result
 
-
 ## Partie 6 - Appliquer aux parties en conservant l'étiquette API séparément
 # ------------------------------------------------------------------
 
-
 def identify_games(raw, reference, max_fullmoves=None, min_fullmoves=None):
-    """Une même partie vue par deux joueurs n'est reconstruite qu'une fois.
-
-    Des bases historiques sans colonne moves restent explicitement non identifiées.
-    Les statistiques ne confondent pas l'étiquette API avec le résultat local.
+    """
+    Une même partie vue par deux joueurs n'est reconstruite qu'une fois.
     """
     maximum = cfg.OPENING_MAX_FULLMOVES if max_fullmoves is None else max_fullmoves
     minimum = cfg.OPENING_MIN_FULLMOVES if min_fullmoves is None else min_fullmoves
