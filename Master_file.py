@@ -1,4 +1,4 @@
-"""Reproduire les trois exercices, puis éventuellement conserver la collecte sur S3."""
+"""Exécuter conserver la collecte sur S3."""
 
 import argparse
 import hashlib
