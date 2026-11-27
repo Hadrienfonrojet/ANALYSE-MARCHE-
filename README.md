@@ -17,7 +17,7 @@ Tout le projet se lit dans **`QueensGambit.ipynb`** : collecte, nettoyage, stati
 
 ## Résultat principal
 
-On répète sa famille d’ouverture dans 11,7 % des enchaînements après une victoire et dans 11,9 % après une nulle ou une défaite (χ², p = 0,65). Répéter ne change pas non plus les chances de gagner la partie suivante. Les résultats dépendent surtout de l’écart d’Elo et, plus faiblement, de la couleur.
+On répète sa famille d’ouverture dans 11,7 % des enchaînements après une victoire et dans 11,9 % après une nulle ou une défaite (χ², p = 0,65). Dans notre échantillon, les résultats ne suffisent pas à établir une association entre le fait de répéter une famille d’ouverture après une victoire et le résultat de la partie suivante. Les résultats dépendent surtout de l’écart d’Elo et, plus faiblement, de la couleur.
 
 ## Fichiers
 
