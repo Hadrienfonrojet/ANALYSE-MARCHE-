@@ -1,6 +1,6 @@
 # Le rôle des ouvertures aux échecs, inspiré du *Jeu de la dame*
 
-[![Ouvrir dans Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Hadrienfonrojet/ANALYSE-MARCHE-/blob/main/QueensGambit.ipynb)
+[![Ouvrir dans Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Hadrienfonrojet/JEU-DE-LA-DAME/blob/main/QueensGambit.ipynb)
 
 **Question de départ :** répéter une ouverture dépend-il de l’issue de la partie précédente ?
 
@@ -32,8 +32,8 @@ Le [guide du code](#guide-du-code-et-des-paramètres) présente les fichiers et 
 ## Installation
 
 ```bash
-git clone https://github.com/Hadrienfonrojet/ANALYSE-MARCHE-.git
-cd ANALYSE-MARCHE-
+git clone https://github.com/Hadrienfonrojet/JEU-DE-LA-DAME.git
+cd JEU-DE-LA-DAME
 python -m pip install -r requirements.txt
 ```
 
