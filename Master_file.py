@@ -1,4 +1,4 @@
-"""Exécuter conserver la collecte sur S3."""
+"""Collecter ou relire les parties, les analyser et éventuellement les conserver sur S3."""
 
 import argparse
 import hashlib
